@@ -1,0 +1,21 @@
+package dutycal;
+
+// Cassandra authentication credentials. Mostly a bunch of key/value pairs.
+message CassandraCredentials {
+    required string key = 1;
+    required string value = 2;
+}
+
+message DutyCalConfig {
+    // host:port pair of the database server.
+    required string db_server = 1;
+
+    // Cassandra authentication credentials.
+    repeated CassandraCredentials db_credentials = 2;
+
+    // Key space to place entries in.
+    required string keyspace = 3;
+
+    // Column family name for events.
+    required string events_column_family = 4;
+}
