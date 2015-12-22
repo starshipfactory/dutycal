@@ -8,14 +8,17 @@ message CassandraCredentials {
 
 message DutyCalConfig {
     // host:port pair of the database server.
-    required string db_server = 1;
+    optional string db_server = 1 [default = "localhost:9160"];
 
     // Cassandra authentication credentials.
     repeated CassandraCredentials db_credentials = 2;
 
     // Key space to place entries in.
-    required string keyspace = 3;
+    optional string keyspace = 3 [default = "dutycal"];
 
     // Column family name for events.
-    required string events_column_family = 4;
+    optional string events_column_family = 4 [default = "events"];
+
+    // The maximum number of events to fetch in a day.
+    optional int32 max_events_per_day = 5 [default = 100];
 }
