@@ -123,7 +123,7 @@ func FetchEventRange(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 	expr.Op = cassandra.IndexOperator_LTE
 	expr.Value, err = to.MarshalBinary()
 	if err != nil {
-		return []*Event{}, err
+		return rv, err
 	}
 	clause.Expressions = append(clause.Expressions, expr)
 
@@ -150,17 +150,17 @@ func FetchEventRange(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 	if ire != nil {
 		err = fmt.Errorf("Invalid request error in index reading: %s",
 			ire.Why)
-		return []*Event{}, err
+		return rv, err
 	}
 	if ue != nil {
 		err = fmt.Errorf("Cassandra unavailable when reading from %s to %s",
 			from.String(), to.String())
-		return []*Event{}, err
+		return rv, err
 	}
 	if te != nil {
 		err = fmt.Errorf("Cassandra timed out when reading from %s to %s: %s",
 			from.String(), to.String(), te.String())
-		return []*Event{}, err
+		return rv, err
 	}
 
 	for _, ks = range res {
@@ -170,7 +170,7 @@ func FetchEventRange(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 
 		err = e.extractFromColumns(ks.Columns)
 		if err != nil {
-			return []*Event{}, err
+			return rv, err
 		}
 
 		rv = append(rv, e)
