@@ -1,0 +1,19 @@
+create keyspace dutycal with placement_strategy = 'org.apache.cassandra.locator.SimpleStrategy' and strategy_options = {replication_factor:1};
+
+create column family events with comparator = 'AsciiType' and key_validation_class = 'AsciiType' and column_metadata = [
+    {column_name: title,
+     validation_class: UTF8Type},
+    {column_name: description,
+     validation_class: UTF8Type},
+    {column_name: owner,
+     validation_class: AsciiType,
+     index_type: 0,
+     index_name: events_owner_idx},
+    {column_name: start,
+     validation_class: DateType,
+     index_type: 0,
+     index_name: events_start_idx},
+    {column_name: end,
+     validation_class: DateType,
+     index_type: 0,
+     index_name: events_end_idx}];
