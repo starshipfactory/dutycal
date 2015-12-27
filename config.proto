@@ -21,4 +21,7 @@ message DutyCalConfig {
 
     // The maximum number of events to fetch in a day.
     optional int32 max_events_per_day = 5 [default = 100];
+
+    // Path to the template files.
+    optional string template_path = 6 [default = "html"];
 }

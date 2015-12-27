@@ -16,4 +16,10 @@ create column family events with comparator = 'AsciiType' and key_validation_cla
     {column_name: end,
      validation_class: DateType,
      index_type: 0,
-     index_name: events_end_idx}];
+     index_name: events_end_idx},
+    {column_name: required,
+     validation_class: BooleanType},
+    {column_name: week,
+     validation_class: LongType,
+     index_type: 0,
+     index_name: events_week_idx}];

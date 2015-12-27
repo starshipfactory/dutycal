@@ -6,8 +6,11 @@ CREATE COLUMNFAMILY events (
     description text,
     owner ascii,
     start timestamp,
-    end timestamp
+    end timestamp,
+    required bool,
+    week int64
 );
 CREATE INDEX ON events (start);
 CREATE INDEX ON events (end);
 CREATE INDEX ON events (owner);
+CREATE INDEX ON events (week);

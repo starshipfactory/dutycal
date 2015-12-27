@@ -3,6 +3,7 @@ package dutycal
 import (
 	"crypto/sha256"
 	"database/cassandra"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"time"
@@ -17,18 +18,23 @@ type Event struct {
 	db   *cassandra.RetryCassandraClient
 	conf *DutyCalConfig
 
-	id          string
+	Id          string
 	Title       string
 	Description string
 	Start       time.Time
 	Duration    time.Duration
 	Owner       string
+	Required    bool
+}
+
+func getWeekFromTimestamp(ts time.Time) int64 {
+	return ts.Unix() / (7 * 24 * 60 * 60)
 }
 
 // Create a new event with the speicfied details.
 func CreateEvent(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 	title, description, owner string,
-	start time.Time, duration time.Duration) *Event {
+	start time.Time, duration time.Duration, required bool) *Event {
 	return &Event{
 		db:   db,
 		conf: conf,
@@ -38,6 +44,7 @@ func CreateEvent(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 		Start:       start,
 		Duration:    duration,
 		Owner:       owner,
+		Required:    required,
 	}
 }
 
@@ -84,7 +91,7 @@ func FetchEvent(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 		return
 	}
 
-	rv = &Event{id: id}
+	rv = &Event{Id: id}
 	err = rv.extractFromColumns(r)
 	return
 }
@@ -114,26 +121,33 @@ func FetchEventRange(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 		duration = to.Sub(from)
 	}
 
+	parent = cassandra.NewColumnParent()
 	parent.ColumnFamily = conf.GetEventsColumnFamily()
-	clause.Count = int32(conf.GetMaxEventsPerDay()/int32(duration.Hours()*24)) + 1
+	clause = cassandra.NewIndexClause()
+	clause.StartKey = make([]byte, 0)
+	clause.Count = int32((conf.GetMaxEventsPerDay()*int32(duration.Hours()))/24) + 1
+	predicate = cassandra.NewSlicePredicate()
 	predicate.ColumnNames = kEventAllColumns
+
+	expr = cassandra.NewIndexExpression()
+	expr.ColumnName = []byte("week")
+	expr.Op = cassandra.IndexOperator_EQ
+	expr.Value = make([]byte, 8)
+	binary.BigEndian.PutUint64(expr.Value, uint64(getWeekFromTimestamp(from)))
+	clause.Expressions = append(clause.Expressions, expr)
 
 	expr = cassandra.NewIndexExpression()
 	expr.ColumnName = []byte("start")
 	expr.Op = cassandra.IndexOperator_LTE
-	expr.Value, err = to.MarshalBinary()
-	if err != nil {
-		return rv, err
-	}
+	expr.Value = make([]byte, 8)
+	binary.BigEndian.PutUint64(expr.Value, uint64(to.Unix()*1000))
 	clause.Expressions = append(clause.Expressions, expr)
 
 	expr = cassandra.NewIndexExpression()
 	expr.ColumnName = []byte("end")
 	expr.Op = cassandra.IndexOperator_GTE
-	expr.Value, err = from.MarshalBinary()
-	if err != nil {
-		return []*Event{}, err
-	}
+	expr.Value = make([]byte, 8)
+	binary.BigEndian.PutUint64(expr.Value, uint64(from.Unix()*1000))
 	clause.Expressions = append(clause.Expressions, expr)
 
 	if quorum {
@@ -148,8 +162,9 @@ func FetchEventRange(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 		return []*Event{}, err
 	}
 	if ire != nil {
-		err = fmt.Errorf("Invalid request error in index reading: %s",
-			ire.Why)
+		err = fmt.Errorf(
+			"Invalid request error in index reading from %s to %s: %s",
+			from.String(), to.String(), ire.Why)
 		return rv, err
 	}
 	if ue != nil {
@@ -165,7 +180,7 @@ func FetchEventRange(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 
 	for _, ks = range res {
 		var e *Event = &Event{
-			id: string(ks.Key),
+			Id: string(ks.Key),
 		}
 
 		err = e.extractFromColumns(ks.Columns)
@@ -183,7 +198,6 @@ func FetchEventRange(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 func (e *Event) extractFromColumns(r []*cassandra.ColumnOrSuperColumn) error {
 	var cos *cassandra.ColumnOrSuperColumn
 	var end time.Time
-	var err error
 
 	for _, cos = range r {
 		var col *cassandra.Column = cos.Column
@@ -202,15 +216,17 @@ func (e *Event) extractFromColumns(r []*cassandra.ColumnOrSuperColumn) error {
 		} else if cname == "owner" {
 			e.Owner = string(col.Value)
 		} else if cname == "start" {
-			err = e.Start.UnmarshalBinary(col.Value)
-			if err != nil {
-				return err
-			}
+			var start int64
+
+			start = int64(binary.BigEndian.Uint64(col.Value))
+			e.Start = time.Unix(start/1000, (start%1000)*1000)
 		} else if cname == "end" {
-			err = end.UnmarshalBinary(col.Value)
-			if err != nil {
-				return err
-			}
+			var end_ts int64
+
+			end_ts = int64(binary.BigEndian.Uint64(col.Value))
+			end = time.Unix(end_ts/1000, (end_ts%1000)*1000)
+		} else if cname == "required" {
+			e.Required = (len(col.Value) > 0 && col.Value[0] > 0)
 		}
 	}
 
@@ -231,8 +247,8 @@ func (e *Event) genEventID() string {
 		return ""
 	}
 	etitle = sha256.Sum224([]byte(e.Title))
-	return fmt.Sprintf("%08X-%s.%s", e.Start.Unix(), e.Duration.String(),
-		hex.EncodeToString(etitle[:]))
+	return fmt.Sprintf("%08X:%08X:%s.%s", getWeekFromTimestamp(e.Start),
+		e.Start.Unix(), e.Duration.String(), hex.EncodeToString(etitle[:]))
 }
 
 // Write the modified event object to the database.
@@ -247,8 +263,8 @@ func (e *Event) Sync() error {
 	var ts int64
 	var err error
 
-	if len(e.id) == 0 {
-		e.id = e.genEventID()
+	if len(e.Id) == 0 {
+		e.Id = e.genEventID()
 	}
 
 	ts = time.Now().UnixNano()
@@ -285,10 +301,8 @@ func (e *Event) Sync() error {
 
 	col = cassandra.NewColumn()
 	col.Name = []byte("start")
-	col.Value, err = e.Start.MarshalBinary()
-	if err != nil {
-		return err
-	}
+	binary.BigEndian.PutUint64(
+		col.Value, uint64(e.Start.Unix()*1000))
 	col.Timestamp = ts
 
 	mutation = cassandra.NewMutation()
@@ -298,10 +312,47 @@ func (e *Event) Sync() error {
 
 	col = cassandra.NewColumn()
 	col.Name = []byte("end")
-	col.Value, err = e.Start.Add(e.Duration).MarshalBinary()
-	if err != nil {
-		return err
+	col.Value = make([]byte, 8)
+	binary.BigEndian.PutUint64(
+		col.Value, uint64(e.Start.Add(e.Duration).Unix()*1000))
+	col.Timestamp = ts
+
+	mutation = cassandra.NewMutation()
+	mutation.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
+	mutation.ColumnOrSupercolumn.Column = col
+	mutations = append(mutations, mutation)
+
+	col = cassandra.NewColumn()
+	col.Name = []byte("required")
+	if e.Required {
+		col.Value = []byte{1}
+	} else {
+		col.Value = []byte{0}
 	}
+	col.Timestamp = ts
+
+	mutation = cassandra.NewMutation()
+	mutation.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
+	mutation.ColumnOrSupercolumn.Column = col
+	mutations = append(mutations, mutation)
+
+	col = cassandra.NewColumn()
+	col.Name = []byte("week")
+	col.Value = make([]byte, 8)
+	binary.BigEndian.PutUint64(
+		col.Value, uint64(getWeekFromTimestamp(e.Start)))
+	col.Timestamp = ts
+
+	mutation = cassandra.NewMutation()
+	mutation.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
+	mutation.ColumnOrSupercolumn.Column = col
+	mutations = append(mutations, mutation)
+
+	col = cassandra.NewColumn()
+	col.Name = []byte("end")
+	col.Value = make([]byte, 8)
+	binary.BigEndian.PutUint64(
+		col.Value, uint64(e.Start.Add(e.Duration).Unix()*1000))
 	col.Timestamp = ts
 
 	mutation = cassandra.NewMutation()
@@ -324,11 +375,11 @@ func (e *Event) Sync() error {
 	}
 	if ue != nil {
 		return fmt.Errorf("Cassandra unavailable when updating %s",
-			e.id)
+			e.Id)
 	}
 	if te != nil {
 		return fmt.Errorf("Cassandra timed out when updating %s: %s",
-			e.id, te.String())
+			e.Id, te.String())
 	}
 
 	return nil
