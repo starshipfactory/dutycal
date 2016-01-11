@@ -28,7 +28,9 @@ type Event struct {
 }
 
 func getWeekFromTimestamp(ts time.Time) int64 {
-	return ts.Unix() / (7 * 24 * 60 * 60)
+	var offset int
+	_, offset = ts.Zone()
+	return (ts.Unix() + offset) / (7 * 24 * 60 * 60)
 }
 
 // Create a new event with the speicfied details.
