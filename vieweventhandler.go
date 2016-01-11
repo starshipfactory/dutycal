@@ -23,9 +23,10 @@ type ViewEventHandler struct {
 type ViewEventData struct {
 	Auth AuthDetails
 
-	Op  string
-	Ev  *Event
-	End time.Time
+	Op   string
+	Ev   *Event
+	End  time.Time
+	Week int64
 }
 
 func NewViewEventHandler(
@@ -88,9 +89,10 @@ func (v *ViewEventHandler) ServeHTTP(
 	}
 
 	ed = &ViewEventData{
-		Ev:  ev,
-		Op:  op,
-		End: ev.Start.Add(ev.Duration),
+		Ev:   ev,
+		Op:   op,
+		End:  ev.Start.Add(ev.Duration),
+		Week: getWeekFromTimestamp(ev.Start),
 	}
 	v.am.GenAuthDetails(req, &ed.Auth)
 	err = v.templates.ExecuteTemplate(rw, "viewevent.html", ed)
