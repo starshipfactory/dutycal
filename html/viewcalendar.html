@@ -13,6 +13,13 @@
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
     </head>
     <body>
+        <div class="pull-right">
+{{ if .Auth.User }}
+            {{.Auth.User}}
+{{ else }}
+            <a href="{{.Auth.LoginUrl.String}}">Login</a>
+{{ end }}
+        </div>
         <div class="container">
             <h1>Events of the week <small>Week {{.WeekNumber}}</small></h1>
             <p>Events in the week of {{.WeekstartText}}</p>

@@ -8,21 +8,31 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"ancient-solutions.com/ancientauth"
 )
 
 type ViewEventHandler struct {
+	auth      *ancientauth.Authenticator
+	am        *authManager
 	db        *cassandra.RetryCassandraClient
 	templates *template.Template
 	config    *DutyCalConfig
 }
 
 type ViewEventData struct {
+	Auth AuthDetails
+
 	Op  string
 	Ev  *Event
 	End time.Time
 }
 
-func NewViewEventHandler(db *cassandra.RetryCassandraClient, conf *DutyCalConfig, tmpl *template.Template) *ViewEventHandler {
+func NewViewEventHandler(
+	db *cassandra.RetryCassandraClient,
+	auth *ancientauth.Authenticator,
+	tmpl *template.Template,
+	conf *DutyCalConfig) *ViewEventHandler {
 	if db == nil {
 		log.Panic("db is nil")
 	}
@@ -33,6 +43,8 @@ func NewViewEventHandler(db *cassandra.RetryCassandraClient, conf *DutyCalConfig
 		log.Panic("tmpl is nil")
 	}
 	return &ViewEventHandler{
+		auth:      auth,
+		am:        NewAuthManager(auth),
 		db:        db,
 		templates: tmpl,
 		config:    conf,
@@ -41,6 +53,8 @@ func NewViewEventHandler(db *cassandra.RetryCassandraClient, conf *DutyCalConfig
 
 func (v *ViewEventHandler) ServeHTTP(
 	rw http.ResponseWriter, req *http.Request) {
+	var ed *ViewEventData
+	var can_edit bool
 	var urlparts []string = strings.Split(req.URL.Path, "/")
 	var op string
 	var ev *Event
@@ -56,6 +70,8 @@ func (v *ViewEventHandler) ServeHTTP(
 		op = "view"
 	}
 
+	can_edit = v.auth.IsAuthenticatedScope(req, v.config.GetEditScope())
+
 	ev, err = FetchEvent(v.db, v.config, urlparts[2], false)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
@@ -65,11 +81,19 @@ func (v *ViewEventHandler) ServeHTTP(
 		return
 	}
 
-	err = v.templates.ExecuteTemplate(rw, "viewevent.html", &ViewEventData{
+	// Hide personal details unless the user is authenticated to a scope
+	// which can see them.
+	if !can_edit && len(ev.Owner) > 0 {
+		ev.Owner = "Assigned"
+	}
+
+	ed = &ViewEventData{
 		Ev:  ev,
 		Op:  op,
 		End: ev.Start.Add(ev.Duration),
-	})
+	}
+	v.am.GenAuthDetails(req, &ed.Auth)
+	err = v.templates.ExecuteTemplate(rw, "viewevent.html", ed)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(rw, "Error executing template for "+urlparts[2]+": "+

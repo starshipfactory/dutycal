@@ -8,11 +8,13 @@ import (
 	"log"
 	"net/http"
 
+	"ancient-solutions.com/ancientauth"
 	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/dutycal"
 )
 
 func main() {
+	var auth *ancientauth.Authenticator
 	var view_templates *template.Template
 	var viewhandler *dutycal.ViewCalHandler
 	var vieweventhandler *dutycal.ViewEventHandler
@@ -50,6 +52,16 @@ func main() {
 		log.Fatal("Error reading HTML templates: ", err)
 	}
 
+	auth, err = ancientauth.NewAuthenticator(
+		config.GetAuth().GetAppName(), config.GetAuth().GetCert(),
+		config.GetAuth().GetKey(), config.GetAuth().GetCaCertificate(),
+		config.GetAuth().GetAuthenticationServer(),
+		config.GetAuth().GetX509Keyserver(),
+		int(config.GetAuth().GetX509CacheSize()))
+	if err != nil {
+		log.Fatal("Error creating AncientAuth client: ", err)
+	}
+
 	db, err = cassandra.NewRetryCassandraClient(config.GetDbServer())
 	if err != nil {
 		log.Fatal("Error connecting to Cassandra at ",
@@ -66,9 +78,10 @@ func main() {
 			": ", err)
 	}
 
-	viewhandler = dutycal.NewViewCalHandler(db, &config, view_templates)
+	viewhandler = dutycal.NewViewCalHandler(
+		db, auth, view_templates, &config)
 	vieweventhandler = dutycal.NewViewEventHandler(
-		db, &config, view_templates)
+		db, auth, view_templates, &config)
 
 	http.Handle("/", viewhandler)
 	http.Handle("/favicon.ico", http.NotFoundHandler())

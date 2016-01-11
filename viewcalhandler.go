@@ -8,15 +8,20 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"ancient-solutions.com/ancientauth"
 )
 
 type ViewCalHandler struct {
+	am        *authManager
 	db        *cassandra.RetryCassandraClient
 	templates *template.Template
 	config    *DutyCalConfig
 }
 
 type calendarViewData struct {
+	Auth AuthDetails
+
 	Weekstart     time.Time
 	WeekstartText string
 	WeekNumber    int64
@@ -27,7 +32,9 @@ type calendarViewData struct {
 	Events [][]*Event
 }
 
-func NewViewCalHandler(db *cassandra.RetryCassandraClient, conf *DutyCalConfig, tmpl *template.Template) *ViewCalHandler {
+func NewViewCalHandler(
+	db *cassandra.RetryCassandraClient, auth *ancientauth.Authenticator,
+	tmpl *template.Template, conf *DutyCalConfig) *ViewCalHandler {
 	if db == nil {
 		log.Panic("db is nil")
 	}
@@ -38,6 +45,7 @@ func NewViewCalHandler(db *cassandra.RetryCassandraClient, conf *DutyCalConfig, 
 		log.Panic("tmpl is nil")
 	}
 	return &ViewCalHandler{
+		am:        NewAuthManager(auth),
 		db:        db,
 		templates: tmpl,
 		config:    conf,
@@ -103,6 +111,8 @@ func (v *ViewCalHandler) ServeHTTP(
 		md.Days = append(md.Days, ts.Format("Mon 2 Jan"))
 		ts = dayend
 	}
+
+	v.am.GenAuthDetails(req, &md.Auth)
 
 	err = v.templates.ExecuteTemplate(rw, "viewcalendar.html", &md)
 	if err != nil {

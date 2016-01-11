@@ -6,6 +6,32 @@ message CassandraCredentials {
     required string value = 2;
 }
 
+// Authentication specific part of the configuration.
+message DutyCalAuthConfig {
+    // Then name of the application to be displayed to the user.
+    optional string app_name = 1 [default = "Duty Calendar"];
+
+    // Path to the PEM encoded X.509 certificate file.
+    required string cert = 2;
+
+    // Path to the PEM encoded X.509 private key.
+    required string key = 3;
+
+    // CA certificate to verify the authentication certificate against.
+    required string ca_certificate = 4;
+
+    // SSO authentication server to redirect the user to.
+    optional string authentication_server = 5
+        [default = "login.ancient-solutions.com"];
+
+    // X.509 keyserver to download referenced certificates from.
+    optional string x509_keyserver = 6;
+
+    // Size of the X.509 certificate cache to use for checking
+    // certificates against.
+    optional int32 x509_cache_size = 7 [default = 10];
+}
+
 message DutyCalConfig {
     // host:port pair of the database server.
     optional string db_server = 1 [default = "localhost:9160"];
@@ -24,4 +50,11 @@ message DutyCalConfig {
 
     // Path to the template files.
     optional string template_path = 6 [default = "html"];
+
+    // Scope (e.g. LDAP group) an user must be authenticated to
+    // to take on shifts.
+    required string edit_scope = 7;
+
+    // Authentication configuration.
+    required DutyCalAuthConfig auth = 8;
 }
