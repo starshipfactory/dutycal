@@ -58,6 +58,7 @@ func (v *ViewCalHandler) ServeHTTP(
 	var ts time.Time
 	var week int64
 	var err error
+	var offset int
 
 	req.ParseForm()
 
@@ -81,6 +82,8 @@ func (v *ViewCalHandler) ServeHTTP(
 	ts = time.Unix(0, 0)
 	ts = ts.Add(time.Duration(week)*24*7*time.Hour +
 		12*7*time.Hour).Truncate(24 * 7 * time.Hour)
+	_, offset = ts.Zone()
+	ts = ts.Add(time.Duration(-offset) * time.Second)
 	md.Weekstart = ts
 	md.WeekstartText = ts.Format("Mon 2 Jan 2006")
 	md.WeekNumber = week
@@ -96,6 +99,11 @@ func (v *ViewCalHandler) ServeHTTP(
 	for weekday := 0; weekday < 7; weekday++ {
 		var dayend time.Time = ts.Add(36 * time.Hour).Truncate(24 * time.Hour)
 		var events []*Event = make([]*Event, 0)
+
+		// We have to determine the offset again, since it may have changed
+		// due to DST or similar.
+		_, offset = ts.Zone()
+		dayend = dayend.Add(time.Duration(-offset) * time.Second)
 
 		events, err = FetchEventRange(v.db, v.config,
 			ts, dayend, false)

@@ -30,7 +30,8 @@ type Event struct {
 func getWeekFromTimestamp(ts time.Time) int64 {
 	var offset int
 	_, offset = ts.Zone()
-	return (ts.Unix() + int64(offset)) / (7 * 24 * 60 * 60)
+	// We'll have to add 3 days because Jan 1 1970 was a Thursday
+	return ts.Add(time.Duration(offset)*time.Second).Add(3*24*time.Hour).Unix() / (7 * 24 * 60 * 60)
 }
 
 // Create a new event with the speicfied details.
