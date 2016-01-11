@@ -11,7 +11,7 @@ import (
 
 var kEventAllColumns [][]byte = [][]byte{
 	[]byte("title"), []byte("description"), []byte("owner"),
-	[]byte("start"), []byte("end"),
+	[]byte("start"), []byte("end"), []byte("required"), []byte("week"),
 }
 
 type Event struct {
@@ -93,7 +93,11 @@ func FetchEvent(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 		return
 	}
 
-	rv = &Event{Id: id}
+	rv = &Event{
+		db:   db,
+		conf: conf,
+		Id:   id,
+	}
 	err = rv.extractFromColumns(r)
 	return
 }
@@ -182,7 +186,9 @@ func FetchEventRange(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 
 	for _, ks = range res {
 		var e *Event = &Event{
-			Id: string(ks.Key),
+			db:   db,
+			conf: conf,
+			Id:   string(ks.Key),
 		}
 
 		err = e.extractFromColumns(ks.Columns)
@@ -303,6 +309,7 @@ func (e *Event) Sync() error {
 
 	col = cassandra.NewColumn()
 	col.Name = []byte("start")
+	col.Value = make([]byte, 8)
 	binary.BigEndian.PutUint64(
 		col.Value, uint64(e.Start.Unix()*1000))
 	col.Timestamp = ts
@@ -363,8 +370,8 @@ func (e *Event) Sync() error {
 	mutations = append(mutations, mutation)
 
 	mmap = make(map[string]map[string][]*cassandra.Mutation)
-	mmap[e.conf.GetKeyspace()] = make(map[string][]*cassandra.Mutation)
-	mmap[e.conf.GetKeyspace()][e.conf.GetEventsColumnFamily()] = mutations
+	mmap[e.Id] = make(map[string][]*cassandra.Mutation)
+	mmap[e.Id][e.conf.GetEventsColumnFamily()] = mutations
 
 	ire, ue, te, err = e.db.AtomicBatchMutate(mmap,
 		cassandra.ConsistencyLevel_QUORUM)

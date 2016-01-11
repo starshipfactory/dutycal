@@ -82,6 +82,25 @@ func (v *ViewEventHandler) ServeHTTP(
 		return
 	}
 
+	if op == "take" {
+		var user string = v.auth.GetAuthenticatedUser(req)
+
+		if len(user) == 0 {
+			v.auth.RequestAuthorization(rw, req)
+			return
+		}
+
+		if can_edit {
+			ev.Owner = user
+			err = ev.Sync()
+			if err != nil {
+				log.Print("Error syncing new owner ", user,
+					" for event ", ev.Id, ": ", err)
+				ev.Owner = err.Error()
+			}
+		}
+	}
+
 	// Hide personal details unless the user is authenticated to a scope
 	// which can see them.
 	if !can_edit && len(ev.Owner) > 0 {

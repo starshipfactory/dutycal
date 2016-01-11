@@ -50,7 +50,8 @@
 {{ else }}
                         <td>Not assigned yet
   {{ if .Ev.Required }}
-                            <p class="bg-warning">Required slot! Please sign up!</p>
+                            <p class="bg-warning">Required slot!
+                                <a href="/event/{{.Ev.Id}}/take">Please sign up!</a></p>
   {{ end }}
                         </td>
 {{ end }}
