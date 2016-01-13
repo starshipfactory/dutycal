@@ -86,6 +86,9 @@ func main() {
 	http.Handle("/", viewhandler)
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.Handle("/event/", vieweventhandler)
+	http.Handle("/bootstrap/",
+		http.StripPrefix("/bootstrap/",
+			http.FileServer(http.Dir(config.GetBootstrapPath()))))
 
 	err = http.ListenAndServe(listen_addr, nil)
 	if err != nil {

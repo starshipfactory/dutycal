@@ -51,10 +51,14 @@ message DutyCalConfig {
     // Path to the template files.
     optional string template_path = 6 [default = "html"];
 
+    // Path to the Twitter Bootstrap JavaScript/CSS directory.
+    optional string bootstrap_path = 7
+        [default = "/usr/share/twitter-bootstrap/files"];
+
     // Scope (e.g. LDAP group) an user must be authenticated to
     // to take on shifts.
-    required string edit_scope = 7;
+    required string edit_scope = 8;
 
     // Authentication configuration.
-    required DutyCalAuthConfig auth = 8;
+    required DutyCalAuthConfig auth = 9;
 }
