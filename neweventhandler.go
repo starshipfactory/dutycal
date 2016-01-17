@@ -66,7 +66,7 @@ func (h *NewEventHandler) ServeHTTP(
 	var on_date time.Time
 	var start, end time.Time
 	var title, description string
-	var offset_hour, offset_minute, tz_offset int
+	var offset_hour, offset_minute int
 	var err error
 
 	user = h.auth.GetAuthenticatedUser(req)
@@ -149,7 +149,6 @@ func (h *NewEventHandler) ServeHTTP(
 		ed.StartMinute < 60 && ed.EndHour >= 0 && ed.EndHour < 24 &&
 		ed.EndMinute >= 0 && ed.EndMinute < 60 && ed.Ev.Duration > 0 &&
 		len(title) > 0 && len(description) > 0 {
-		log.Print("Syncing event: ", ed.Ev)
 		err = ed.Ev.Sync()
 
 		if err == nil {
