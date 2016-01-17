@@ -6,12 +6,14 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"net/url"
 	"time"
 )
 
 var kEventAllColumns [][]byte = [][]byte{
 	[]byte("title"), []byte("description"), []byte("owner"),
 	[]byte("start"), []byte("end"), []byte("required"), []byte("week"),
+	[]byte("reference"),
 }
 
 type Event struct {
@@ -24,6 +26,7 @@ type Event struct {
 	Start       time.Time
 	Duration    time.Duration
 	Owner       string
+	Reference   *url.URL
 	Required    bool
 }
 
@@ -37,7 +40,8 @@ func getWeekFromTimestamp(ts time.Time) int64 {
 // Create a new event with the speicfied details.
 func CreateEvent(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 	title, description, owner string,
-	start time.Time, duration time.Duration, required bool) *Event {
+	start time.Time, duration time.Duration, reference *url.URL,
+	required bool) *Event {
 	return &Event{
 		db:   db,
 		conf: conf,
@@ -47,6 +51,7 @@ func CreateEvent(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 		Start:       start,
 		Duration:    duration,
 		Owner:       owner,
+		Reference:   reference,
 		Required:    required,
 	}
 }
@@ -234,6 +239,8 @@ func (e *Event) extractFromColumns(r []*cassandra.ColumnOrSuperColumn) error {
 
 			end_ts = int64(binary.BigEndian.Uint64(col.Value))
 			end = time.Unix(end_ts/1000, (end_ts%1000)*1000)
+		} else if cname == "reference" {
+			e.Reference, _ = url.Parse(string(col.Value))
 		} else if cname == "required" {
 			e.Required = (len(col.Value) > 0 && col.Value[0] > 0)
 		}
@@ -358,17 +365,17 @@ func (e *Event) Sync() error {
 	mutation.ColumnOrSupercolumn.Column = col
 	mutations = append(mutations, mutation)
 
-	col = cassandra.NewColumn()
-	col.Name = []byte("end")
-	col.Value = make([]byte, 8)
-	binary.BigEndian.PutUint64(
-		col.Value, uint64(e.Start.Add(e.Duration).Unix()*1000))
-	col.Timestamp = ts
+	if e.Reference != nil {
+		col = cassandra.NewColumn()
+		col.Name = []byte("reference")
+		col.Value = []byte(e.Reference.String())
+		col.Timestamp = ts
 
-	mutation = cassandra.NewMutation()
-	mutation.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
-	mutation.ColumnOrSupercolumn.Column = col
-	mutations = append(mutations, mutation)
+		mutation = cassandra.NewMutation()
+		mutation.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
+		mutation.ColumnOrSupercolumn.Column = col
+		mutations = append(mutations, mutation)
+	}
 
 	mmap = make(map[string]map[string][]*cassandra.Mutation)
 	mmap[e.Id] = make(map[string][]*cassandra.Mutation)

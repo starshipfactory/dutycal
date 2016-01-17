@@ -29,7 +29,11 @@
                 <tbody>
                     <tr>
                         <td>Title:</td>
-                        <td>{{.Ev.Title}}</td>
+                        <td>
+                            {{ if .Ev.Reference }}<a href="{{.Ev.Reference.String}}">{{ end }}
+                            {{.Ev.Title}}
+                            {{ if .Ev.Reference }}</a>{{ end }}
+                        </td>
                     </tr>
                     <tr>
                         <td>Description:</td>

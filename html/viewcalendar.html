@@ -40,8 +40,14 @@
                         <td>
                             <ul>
     {{ range $event := $events }}
-                                <li><a href="/event/{{ $event.Id }}/view">{{ $event.Title }}</a><br/>
-                                    at {{ $event.Start }}<br/>for {{ $event.Duration }}</li>
+                                <li>
+                                    <a href="/event/{{ $event.Id }}/view">{{ $event.Title }}</a><br/>
+                                        at {{ $event.Start }}<br/>for {{ $event.Duration }}
+        {{ if $event.Reference }}
+                                        <br/>
+                                        <a href="{{ $event.Reference.String }}">Details</a>
+        {{ end }}
+                                </li>
     {{ else }}
                                 <li>Nothing</li>
     {{ end }}

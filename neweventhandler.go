@@ -67,6 +67,7 @@ func (h *NewEventHandler) ServeHTTP(
 	var start, end time.Time
 	var title, description string
 	var offset_hour, offset_minute int
+	var reference *url.URL
 	var err error
 
 	user = h.auth.GetAuthenticatedUser(req)
@@ -133,6 +134,17 @@ func (h *NewEventHandler) ServeHTTP(
 		}
 	}
 
+	if len(req.PostFormValue("reference")) > 0 {
+		reference, err = url.Parse(req.PostFormValue("reference"))
+		if err == nil {
+			if !reference.IsAbs() {
+				ed.Error += " URL reference is not absolute."
+			}
+		} else {
+			ed.Error += " " + err.Error()
+		}
+	}
+
 	end = on_date.Add(
 		time.Duration(offset_hour) * time.Hour).Add(
 		time.Duration(offset_minute) * time.Minute)
@@ -141,8 +153,14 @@ func (h *NewEventHandler) ServeHTTP(
 	ed.StartMinute = start.Minute()
 	ed.EndHour = end.Hour()
 	ed.EndMinute = end.Minute()
+
+	if ed.StartHour > ed.EndHour || (ed.StartHour == ed.EndHour &&
+		ed.StartMinute > ed.EndMinute) {
+		ed.Error += " Event starts after it ends."
+	}
+
 	ed.Ev = CreateEvent(h.db, h.config, title, description, user, start,
-		end.Sub(start), false)
+		end.Sub(start), reference, false)
 
 	if len(ed.Error) == 0 && ed.StartHour >= 0 && ed.StartHour < 24 &&
 		ed.EndHour >= 0 && ed.EndHour < 24 && ed.StartMinute >= 0 &&

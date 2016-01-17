@@ -42,11 +42,15 @@
                     <legend>Event description</legend>
                     <div class="form-group">
                         <label for="title">Title:</label>
-                        <input class="form-control" type="text" id="title" name="title" value="{{.Ev.Title}}" required="required" /></td>
+                        <input class="form-control" type="text" id="title" name="title" value="{{.Ev.Title}}" required="required" />
                     </div>
                     <div class="form-group">
                         <label for="description">Description:</label>
                         <textarea id="description" name="description" required="required">{{.Ev.Description}}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="reference">Reference:</label>
+                        <input class="form-control" type="url" id="reference" name="reference" value="{{ if .Ev.Reference }}{{.Ev.Reference.String}}{{ end }}" />
                     </div>
                 </fieldset>
                 <fieldset>
