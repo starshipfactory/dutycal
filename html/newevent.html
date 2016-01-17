@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>New event</title>
+
+        <!-- Latest compiled and minified CSS -->
+        <link rel="stylesheet" href="/bootstrap/css/bootstrap.min.css" />
+        <link rel="stylesheet" href="/bootstrap/css/datepicker3.css" />
+        <link rel="stylesheet" href="/fontawesome/css/font-awesome.min.css" />
+
+        <!-- Optional theme -->
+        <link rel="stylesheet" href="/bootstrap/css/bootstrap-theme.min.css" />
+
+        <!-- Latest compiled and minified JavaScript -->
+        <script src="/bootstrap/jquery/jquery.min.js"></script>
+        <script src="/moment/moment.min.js"></script>
+        <script src="/bootstrap/js/bootstrap.min.js"></script>
+        <script src="/bootstrap/js/bootstrap-datepicker.js"></script>
+        <script src="/bootstrap/js/locales/bootstrap-datepicker.de.js" charset="UTF-8"></script>
+    </head>
+    <body>
+        <div class="pull-right">
+{{ if .Auth.User }}
+            {{.Auth.User}}
+{{ else }}
+            <a href="{{.Auth.LoginUrl.String}}">Login</a>
+{{ end }}
+        </div>
+        <div class="container">
+            <h1>New Event</h1>
+{{ if .Error }}
+            <div class="alert alert-warning alert-dismissible" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <strong>Error</strong> {{.Error}}
+            </div>
+{{ end }}
+            <p>
+                Please fill out all relevant details of the new event:
+            </p>
+            <form action="/newevent" method="post">
+                <fieldset>
+                    <legend>Event description</legend>
+                    <div class="form-group">
+                        <label for="title">Title:</label>
+                        <input class="form-control" type="text" id="title" name="title" value="{{.Ev.Title}}" required="required" /></td>
+                    </div>
+                    <div class="form-group">
+                        <label for="description">Description:</label>
+                        <textarea id="description" name="description" required="required">{{.Ev.Description}}</textarea>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>Event time</legend>
+                    <div class="form-group">
+                        <label for="startInput">Date:</label>
+                        <div class="input-group date" data-provide="datepicker" data-date-autoclose="true" data-date-format="dd.mm.yyyy" data-start-date="{{.DateFormatted}}">
+                            <input type="text" class="form-control" id="startInput" name="date" value="{{.DateFormatted}}" required="required" readonly="readonly" />
+                            <span class="input-group-addon">
+                                <span class="glyphicon glyphicon-calendar" aria-hidden="true"></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="start-hour">Start time:</label>
+                        <div class="input-group">
+                            <input type="number" id="start-hour" name="start-hour" min="0" max="23" size="2" maxlength="2" step="1" required="required" value="{{.StartHour}}" />
+                            :
+                            <input type="number" id="start-minute" name="start-minute" min="0" max="59" size="2" maxlength="2" step="1" required="required" value="{{.StartMinute}}" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="end-hour">End time:</label>
+                        <div class="input-group">
+                            <input type="number" id="end-hour" name="end-hour" min="0" max="23" size="2" maxlength="2" step="1" required="required" value="{{.EndHour}}" />
+                            :
+                            <input type="number" id="end-minute" name="end-minute" min="0" max="59" size="2" maxlength="2" step="1" required="required" value="{{.EndMinute}}" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <a class="btn btn-default" href="/" role="button">Back</a>
+                        <input type="submit" class="btn btn-primary" value="Submit" />
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+    </body>
+</html>

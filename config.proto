@@ -14,7 +14,7 @@ message DutyCalAuthConfig {
     // Path to the PEM encoded X.509 certificate file.
     required string cert = 2;
 
-    // Path to the PEM encoded X.509 private key.
+    // Path to the DER encoded X.509 private key.
     required string key = 3;
 
     // CA certificate to verify the authentication certificate against.
@@ -55,10 +55,24 @@ message DutyCalConfig {
     optional string bootstrap_path = 7
         [default = "/usr/share/twitter-bootstrap/files"];
 
+    // Path to the Moment JavaScript date library.
+    optional string moment_path = 8
+        [default = "/usr/share/javascript/moment"];
+
+    // Path to the fontawesome font directory.
+    optional string fontawesome_path = 9
+        [default = "/usr/share/fonts-font-awesome"];
+
     // Scope (e.g. LDAP group) an user must be authenticated to
     // to take on shifts.
-    required string edit_scope = 8;
+    required string edit_scope = 10;
 
     // Authentication configuration.
-    required DutyCalAuthConfig auth = 9;
+    required DutyCalAuthConfig auth = 11;
+
+    // Path to the PEM encoded X.509 web certificate file.
+    required string tls_cert_file = 12;
+
+    // Path to the PEM encoded X.509 web private key.
+    required string tls_key_file = 13;
 }

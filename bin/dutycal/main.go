@@ -18,6 +18,7 @@ func main() {
 	var view_templates *template.Template
 	var viewhandler *dutycal.ViewCalHandler
 	var vieweventhandler *dutycal.ViewEventHandler
+	var neweventhandler *dutycal.NewEventHandler
 	var db *cassandra.RetryCassandraClient
 	var ire *cassandra.InvalidRequestException
 	var config dutycal.DutyCalConfig
@@ -82,15 +83,25 @@ func main() {
 		db, auth, view_templates, &config)
 	vieweventhandler = dutycal.NewViewEventHandler(
 		db, auth, view_templates, &config)
+	neweventhandler = dutycal.NewNewEventHandler(
+		db, auth, view_templates, &config)
 
 	http.Handle("/", viewhandler)
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.Handle("/event/", vieweventhandler)
+	http.Handle("/newevent", neweventhandler)
 	http.Handle("/bootstrap/",
 		http.StripPrefix("/bootstrap/",
 			http.FileServer(http.Dir(config.GetBootstrapPath()))))
+	http.Handle("/moment/",
+		http.StripPrefix("/moment/",
+			http.FileServer(http.Dir(config.GetMomentPath()))))
+	http.Handle("/fontawesome/",
+		http.StripPrefix("/fontawesome/",
+			http.FileServer(http.Dir(config.GetFontawesomePath()))))
 
-	err = http.ListenAndServe(listen_addr, nil)
+	err = http.ListenAndServeTLS(listen_addr, config.GetTlsCertFile(),
+		config.GetTlsKeyFile(), nil)
 	if err != nil {
 		log.Fatal("Error listening on ", listen_addr, ": ", err)
 	}
