@@ -21,6 +21,11 @@
 {{ end }}
         </div>
         <div class="container">
+{{ if .Auth.User }}
+            <div class="pull-right">
+                <a href="/newevent" class="btn btn-primary" role="button">New</a>
+            </div>
+{{ end }}
             <h1>{{.Ev.Title}} <small>Event Details</small></h1>
             <p>
                 The details about the event <em>{{.Ev.Id}}</em>:
@@ -63,6 +68,16 @@
                 </tbody>
             </table>
             <p>
+{{ if .Ev.Owner }}
+    {{ if .CanDisclaim }}
+                <a class="btn btn-default" href="/event/{{.Ev.Id}}/disclaim">Disclaim</a>
+    {{ end }}
+    {{ if .CanDelete }}
+                <a class="btn btn-default" href="/event/{{.Ev.Id}}/delete">Delete</a>
+    {{ end }}
+{{ else }}
+                <a class="btn btn-default" href="/event/{{.Ev.Id}}/take">Take</a>
+{{ end }}
                 <a class="btn btn-primary" href="/?week={{.Week}}" role="button">Back</a>
             </p>
         </div>

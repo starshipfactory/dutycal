@@ -5,6 +5,7 @@ import (
 	"database/cassandra"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/url"
 	"time"
@@ -28,6 +29,8 @@ type Event struct {
 	Owner       string
 	Reference   *url.URL
 	Required    bool
+
+	update_ts int64
 }
 
 func getWeekFromTimestamp(ts time.Time) int64 {
@@ -222,6 +225,9 @@ func (e *Event) extractFromColumns(r []*cassandra.ColumnOrSuperColumn) error {
 		}
 
 		cname = string(col.Name)
+		if col.IsSetTimestamp() {
+			e.update_ts = col.Timestamp
+		}
 
 		if cname == "title" {
 			e.Title = string(col.Value)
@@ -376,6 +382,58 @@ func (e *Event) Sync() error {
 		mutation.ColumnOrSupercolumn.Column = col
 		mutations = append(mutations, mutation)
 	}
+
+	mmap = make(map[string]map[string][]*cassandra.Mutation)
+	mmap[e.Id] = make(map[string][]*cassandra.Mutation)
+	mmap[e.Id][e.conf.GetEventsColumnFamily()] = mutations
+
+	ire, ue, te, err = e.db.AtomicBatchMutate(mmap,
+		cassandra.ConsistencyLevel_QUORUM)
+	if err != nil {
+		return err
+	}
+	if ire != nil {
+		return fmt.Errorf("Invalid request error in batch mutation: %s",
+			ire.Why)
+	}
+	if ue != nil {
+		return fmt.Errorf("Cassandra unavailable when updating %s",
+			e.Id)
+	}
+	if te != nil {
+		return fmt.Errorf("Cassandra timed out when updating %s: %s",
+			e.Id, te.String())
+	}
+
+	// Update the update timestamp in case we want to delete the event again.
+	e.update_ts = ts
+
+	return nil
+}
+
+// Delete the database representation of the event.
+func (e *Event) Delete() error {
+	var ire *cassandra.InvalidRequestException
+	var ue *cassandra.UnavailableException
+	var te *cassandra.TimedOutException
+	var sp *cassandra.SlicePredicate
+	var mmap map[string]map[string][]*cassandra.Mutation
+	var mutations []*cassandra.Mutation
+	var mutation *cassandra.Mutation
+	var err error
+
+	if e.update_ts == 0 {
+		return errors.New("Object not synced to database yet")
+	}
+
+	sp = cassandra.NewSlicePredicate()
+	sp.ColumnNames = kEventAllColumns
+
+	mutation = cassandra.NewMutation()
+	mutation.Deletion = cassandra.NewDeletion()
+	mutation.Deletion.Timestamp = e.update_ts
+	mutation.Deletion.Predicate = sp
+	mutations = append(mutations, mutation)
 
 	mmap = make(map[string]map[string][]*cassandra.Mutation)
 	mmap[e.Id] = make(map[string][]*cassandra.Mutation)

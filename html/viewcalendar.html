@@ -21,9 +21,11 @@
 {{ end }}
         </div>
         <div class="container">
+{{ if .Auth.User }}
             <div class="pull-right">
                 <a href="/newevent" class="btn btn-primary" role="button">New</a>
             </div>
+{{ end }}
             <h1>Events of the week <small>Week {{.WeekNumber}}</small></h1>
             <p>Events in the week of {{.WeekstartText}}</p>
             <table class="table">

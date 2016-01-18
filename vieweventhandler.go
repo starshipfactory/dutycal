@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,6 +28,9 @@ type ViewEventData struct {
 	Ev   *Event
 	End  time.Time
 	Week int64
+
+	CanDisclaim bool
+	CanDelete   bool
 }
 
 func NewViewEventHandler(
@@ -54,13 +58,17 @@ func NewViewEventHandler(
 
 func (v *ViewEventHandler) ServeHTTP(
 	rw http.ResponseWriter, req *http.Request) {
+	var user string
 	var ed *ViewEventData
 	var can_edit bool
+	var can_delete bool
+	var can_disclaim bool
 	var urlparts []string = strings.Split(req.URL.Path, "/")
 	var op string
 	var ev *Event
 	var err error
 
+	user = v.auth.GetAuthenticatedUser(req)
 	if len(urlparts) < 3 {
 		http.Redirect(rw, req, "/", http.StatusTemporaryRedirect)
 		return
@@ -82,9 +90,10 @@ func (v *ViewEventHandler) ServeHTTP(
 		return
 	}
 
-	if op == "take" {
-		var user string = v.auth.GetAuthenticatedUser(req)
+	can_delete = !ev.Required && ev.Owner == user
+	can_disclaim = ev.Owner == user
 
+	if op == "take" {
 		if len(user) == 0 {
 			v.auth.RequestAuthorization(rw, req)
 			return
@@ -99,7 +108,49 @@ func (v *ViewEventHandler) ServeHTTP(
 				ev.Owner = err.Error()
 			}
 		}
+	} else if op == "disclaim" {
+		if len(user) == 0 {
+			v.auth.RequestAuthorization(rw, req)
+			return
+		}
+
+		if can_disclaim {
+			ev.Owner = ""
+			err = ev.Sync()
+			if err == nil {
+				rw.Header().Set("Location",
+					"/event/"+ev.Id+"/view")
+				rw.WriteHeader(http.StatusTemporaryRedirect)
+				return
+			} else {
+				log.Print("Error syncing new owner ", user,
+					" for event ", ev.Id, ": ", err)
+				ev.Owner = err.Error()
+			}
+		}
+	} else if op == "delete" {
+		if len(user) == 0 {
+			v.auth.RequestAuthorization(rw, req)
+			return
+		}
+
+		if can_delete {
+			err = ev.Delete()
+			if err == nil {
+				rw.Header().Set("Location",
+					"/?week="+strconv.FormatInt(
+						getWeekFromTimestamp(ev.Start), 10))
+				rw.WriteHeader(http.StatusTemporaryRedirect)
+				return
+			} else {
+				log.Print("Error deleting event ", ev.Id, ": ", err)
+			}
+		}
 	}
+
+	// Things may have changed above, let's recompute.
+	can_delete = !ev.Required && ev.Owner == user
+	can_disclaim = ev.Owner == user
 
 	// Hide personal details unless the user is authenticated to a scope
 	// which can see them.
@@ -108,10 +159,12 @@ func (v *ViewEventHandler) ServeHTTP(
 	}
 
 	ed = &ViewEventData{
-		Ev:   ev,
-		Op:   op,
-		End:  ev.Start.Add(ev.Duration),
-		Week: getWeekFromTimestamp(ev.Start),
+		Ev:          ev,
+		Op:          op,
+		End:         ev.Start.Add(ev.Duration),
+		Week:        getWeekFromTimestamp(ev.Start),
+		CanDelete:   can_delete,
+		CanDisclaim: can_disclaim,
 	}
 	v.am.GenAuthDetails(req, &ed.Auth)
 	err = v.templates.ExecuteTemplate(rw, "viewevent.html", ed)
