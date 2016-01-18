@@ -85,9 +85,6 @@ func ScheduleWeekdayRecurringEvent(
 
 			// More checks may go here.
 
-			log.Print("Found event matching generator ID: ",
-				ev.Id, " from ", ev.Start.Format(time.RFC1123Z),
-				" titled ", ev.Title)
 			found = true
 		}
 
