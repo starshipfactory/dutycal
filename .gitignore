@@ -1,3 +1,4 @@
 *.pb.go
 bin/dutycal/dutycal
+bin/dutygen/dutygen
 dutycal.sublime-*

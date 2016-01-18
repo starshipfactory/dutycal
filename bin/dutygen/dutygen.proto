@@ -1,0 +1,13 @@
+package main;
+
+// Generator ID.
+message GeneratorID {
+    // Start time stamp.
+    required int64 start_timestamp = 1;
+
+    // Duration in seconds.
+    required int64 duration = 2;
+
+    // Hash of the contents.
+    required bytes content_hash = 3;
+}

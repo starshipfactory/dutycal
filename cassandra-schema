@@ -22,4 +22,8 @@ create column family events with comparator = 'AsciiType' and key_validation_cla
     {column_name: week,
      validation_class: LongType,
      index_type: 0,
-     index_name: events_week_idx}];
+     index_name: events_week_idx},
+    {column_name: reference,
+     validation_class: AsciiType},
+    {column_name: generatorID,
+     validation_class: BytesType}];

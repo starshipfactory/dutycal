@@ -14,7 +14,7 @@ import (
 var kEventAllColumns [][]byte = [][]byte{
 	[]byte("title"), []byte("description"), []byte("owner"),
 	[]byte("start"), []byte("end"), []byte("required"), []byte("week"),
-	[]byte("reference"),
+	[]byte("reference"), []byte("generatorID"),
 }
 
 type Event struct {
@@ -29,6 +29,7 @@ type Event struct {
 	Owner       string
 	Reference   *url.URL
 	Required    bool
+	GeneratorID []byte
 
 	update_ts int64
 }
@@ -249,6 +250,8 @@ func (e *Event) extractFromColumns(r []*cassandra.ColumnOrSuperColumn) error {
 			e.Reference, _ = url.Parse(string(col.Value))
 		} else if cname == "required" {
 			e.Required = (len(col.Value) > 0 && col.Value[0] > 0)
+		} else if cname == "generatorID" {
+			e.GeneratorID = col.Value
 		}
 	}
 
@@ -269,7 +272,7 @@ func (e *Event) genEventID() string {
 		return ""
 	}
 	etitle = sha256.Sum224([]byte(e.Title))
-	return fmt.Sprintf("%08X:%08X:%s.%s", getWeekFromTimestamp(e.Start),
+	return fmt.Sprintf("%08X:%16X:%s.%s", getWeekFromTimestamp(e.Start),
 		e.Start.Unix(), e.Duration.String(), hex.EncodeToString(etitle[:]))
 }
 
@@ -375,6 +378,18 @@ func (e *Event) Sync() error {
 		col = cassandra.NewColumn()
 		col.Name = []byte("reference")
 		col.Value = []byte(e.Reference.String())
+		col.Timestamp = ts
+
+		mutation = cassandra.NewMutation()
+		mutation.ColumnOrSupercolumn = cassandra.NewColumnOrSuperColumn()
+		mutation.ColumnOrSupercolumn.Column = col
+		mutations = append(mutations, mutation)
+	}
+
+	if len(e.GeneratorID) > 0 {
+		col = cassandra.NewColumn()
+		col.Name = []byte("generatorID")
+		col.Value = e.GeneratorID
 		col.Timestamp = ts
 
 		mutation = cassandra.NewMutation()

@@ -6,6 +6,47 @@ message CassandraCredentials {
     required string value = 2;
 }
 
+// Recurring events configuration for recurring events.
+message RecurringEvent {
+    enum RecurrenceType {
+        WEEKDAY = 1;
+        HORRIBLE = 2;
+    }
+
+    // The type of recurrence.
+    required RecurrenceType recurrence_type = 1;
+
+    // On what number of the recurrence type the event should be placed,
+    // e.g. the day of week if recurrence_type = WEEKDAY.
+    required int32 recurrence_selector = 2;
+
+    // The event title.
+    required string title = 3;
+
+    // Detailed data describing the event which should be added to the
+    // calendar entry.
+    required string description = 4;
+
+    // Optional URL with additional details about the event.
+    optional string reference = 5;
+
+    // Whether or not the event must find an owner and cannot
+    // be deleted through the web interface.
+    required bool required = 6;
+
+    // The hour at which the event starts.
+    required int32 start_hour = 7;
+
+    // The minute at which the event starts.
+    optional int32 start_minute = 8 [default = 0];
+
+    // The number of hours after which the event ends.
+    required int32 duration_hours = 9;
+
+    // The number of minutes after which the event ends.
+    optional int32 duration_minutes = 10 [default = 0];
+}
+
 // Authentication specific part of the configuration.
 message DutyCalAuthConfig {
     // Then name of the application to be displayed to the user.
@@ -75,4 +116,11 @@ message DutyCalConfig {
 
     // Path to the PEM encoded X.509 web private key.
     required string tls_key_file = 13;
+
+    // Recurring events which should be registered in the calendar.
+    repeated RecurringEvent recurring_events = 14;
+
+    // How many days to schedule ahead for recurring events.
+    // Defaults to half a year.
+    optional int32 recurring_events_schedule_ahead = 15 [default = 180];
 }
