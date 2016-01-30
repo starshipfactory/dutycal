@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"ancient-solutions.com/ancientauth"
 	"github.com/golang/protobuf/proto"
@@ -21,6 +22,7 @@ func main() {
 	var neweventhandler *dutycal.NewEventHandler
 	var db *cassandra.RetryCassandraClient
 	var ire *cassandra.InvalidRequestException
+	var loc *time.Location
 	var config dutycal.DutyCalConfig
 	var config_path, listen_addr string
 	var configdata []byte
@@ -79,12 +81,18 @@ func main() {
 			": ", err)
 	}
 
+	loc, err = time.LoadLocation(config.GetDefaultTimeZone())
+	if err != nil {
+		log.Fatal("Unable to load timezone ", config.GetDefaultTimeZone(),
+			": ", err)
+	}
+
 	viewhandler = dutycal.NewViewCalHandler(
-		db, auth, view_templates, &config)
+		db, auth, loc, view_templates, &config)
 	vieweventhandler = dutycal.NewViewEventHandler(
-		db, auth, view_templates, &config)
+		db, auth, loc, view_templates, &config)
 	neweventhandler = dutycal.NewNewEventHandler(
-		db, auth, view_templates, &config)
+		db, auth, loc, view_templates, &config)
 
 	http.Handle("/", viewhandler)
 	http.Handle("/favicon.ico", http.NotFoundHandler())

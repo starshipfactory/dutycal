@@ -31,6 +31,7 @@ type Event struct {
 	Required    bool
 	GeneratorID []byte
 
+	location  *time.Location
 	update_ts int64
 }
 
@@ -44,15 +45,17 @@ func getWeekFromTimestamp(ts time.Time) int64 {
 // Create a new event with the speicfied details.
 func CreateEvent(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 	title, description, owner string,
-	start time.Time, duration time.Duration, reference *url.URL,
-	required bool) *Event {
+	start time.Time, duration time.Duration, location *time.Location,
+	reference *url.URL, required bool) *Event {
 	return &Event{
 		db:   db,
 		conf: conf,
 
+		location: location,
+
 		Title:       title,
 		Description: description,
-		Start:       start,
+		Start:       start.In(location),
 		Duration:    duration,
 		Owner:       owner,
 		Reference:   reference,
@@ -65,7 +68,7 @@ func CreateEvent(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 // "conf". If "quorum" is specified, a quorum read from the database will
 // be performed rather than just reading from a single replica.
 func FetchEvent(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
-	id string, quorum bool) (rv *Event, err error) {
+	id string, loc *time.Location, quorum bool) (rv *Event, err error) {
 	var cp *cassandra.ColumnParent = cassandra.NewColumnParent()
 	var pred *cassandra.SlicePredicate = cassandra.NewSlicePredicate()
 	var cl cassandra.ConsistencyLevel
@@ -108,13 +111,13 @@ func FetchEvent(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 		conf: conf,
 		Id:   id,
 	}
-	err = rv.extractFromColumns(r)
+	err = rv.extractFromColumns(r, loc)
 	return
 }
 
 // Retrieve a list of all events between the two specified dates.
 func FetchEventRange(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
-	from, to time.Time, quorum bool) ([]*Event, error) {
+	from, to time.Time, loc *time.Location, quorum bool) ([]*Event, error) {
 	var parent *cassandra.ColumnParent
 	var clause *cassandra.IndexClause
 	var predicate *cassandra.SlicePredicate
@@ -201,7 +204,7 @@ func FetchEventRange(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 			Id:   string(ks.Key),
 		}
 
-		err = e.extractFromColumns(ks.Columns)
+		err = e.extractFromColumns(ks.Columns, loc)
 		if err != nil {
 			return rv, err
 		}
@@ -213,7 +216,8 @@ func FetchEventRange(db *cassandra.RetryCassandraClient, conf *DutyCalConfig,
 }
 
 // Extract event data from a number of columns.
-func (e *Event) extractFromColumns(r []*cassandra.ColumnOrSuperColumn) error {
+func (e *Event) extractFromColumns(r []*cassandra.ColumnOrSuperColumn,
+	loc *time.Location) error {
 	var cos *cassandra.ColumnOrSuperColumn
 	var end time.Time
 
@@ -240,12 +244,12 @@ func (e *Event) extractFromColumns(r []*cassandra.ColumnOrSuperColumn) error {
 			var start int64
 
 			start = int64(binary.BigEndian.Uint64(col.Value))
-			e.Start = time.Unix(start/1000, (start%1000)*1000)
+			e.Start = time.Unix(start/1000, (start%1000)*1000).In(loc)
 		} else if cname == "end" {
 			var end_ts int64
 
 			end_ts = int64(binary.BigEndian.Uint64(col.Value))
-			end = time.Unix(end_ts/1000, (end_ts%1000)*1000)
+			end = time.Unix(end_ts/1000, (end_ts%1000)*1000).In(loc)
 		} else if cname == "reference" {
 			e.Reference, _ = url.Parse(string(col.Value))
 		} else if cname == "required" {
@@ -261,6 +265,7 @@ func (e *Event) extractFromColumns(r []*cassandra.ColumnOrSuperColumn) error {
 	} else {
 		e.Duration = end.Sub(e.Start)
 	}
+	e.location = loc
 
 	return nil
 }
@@ -272,7 +277,7 @@ func (e *Event) genEventID() string {
 		return ""
 	}
 	etitle = sha256.Sum224([]byte(e.Title))
-	return fmt.Sprintf("%08X:%16X:%s.%s", getWeekFromTimestamp(e.Start),
+	return fmt.Sprintf("%08X:%016X:%s.%s", getWeekFromTimestamp(e.Start),
 		e.Start.Unix(), e.Duration.String(), hex.EncodeToString(etitle[:]))
 }
 

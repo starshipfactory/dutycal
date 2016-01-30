@@ -17,6 +17,7 @@ type ViewCalHandler struct {
 	db        *cassandra.RetryCassandraClient
 	templates *template.Template
 	config    *DutyCalConfig
+	location  *time.Location
 }
 
 type calendarViewData struct {
@@ -34,7 +35,8 @@ type calendarViewData struct {
 
 func NewViewCalHandler(
 	db *cassandra.RetryCassandraClient, auth *ancientauth.Authenticator,
-	tmpl *template.Template, conf *DutyCalConfig) *ViewCalHandler {
+	loc *time.Location, tmpl *template.Template,
+	conf *DutyCalConfig) *ViewCalHandler {
 	if db == nil {
 		log.Panic("db is nil")
 	}
@@ -44,11 +46,15 @@ func NewViewCalHandler(
 	if tmpl == nil {
 		log.Panic("tmpl is nil")
 	}
+	if loc == nil {
+		log.Panic("loc is nil")
+	}
 	return &ViewCalHandler{
 		am:        NewAuthManager(auth),
 		db:        db,
 		templates: tmpl,
 		config:    conf,
+		location:  loc,
 	}
 }
 
@@ -106,7 +112,7 @@ func (v *ViewCalHandler) ServeHTTP(
 		dayend = dayend.Add(time.Duration(-offset) * time.Second)
 
 		events, err = FetchEventRange(v.db, v.config,
-			ts, dayend, false)
+			ts, dayend, v.location, false)
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
 			io.WriteString(rw, "Error fetching events for "+ts.String()+

@@ -19,6 +19,7 @@ type ViewEventHandler struct {
 	db        *cassandra.RetryCassandraClient
 	templates *template.Template
 	config    *DutyCalConfig
+	location  *time.Location
 }
 
 type ViewEventData struct {
@@ -36,6 +37,7 @@ type ViewEventData struct {
 func NewViewEventHandler(
 	db *cassandra.RetryCassandraClient,
 	auth *ancientauth.Authenticator,
+	loc *time.Location,
 	tmpl *template.Template,
 	conf *DutyCalConfig) *ViewEventHandler {
 	if db == nil {
@@ -47,12 +49,16 @@ func NewViewEventHandler(
 	if tmpl == nil {
 		log.Panic("tmpl is nil")
 	}
+	if loc == nil {
+		log.Panic("loc is nil")
+	}
 	return &ViewEventHandler{
 		auth:      auth,
 		am:        NewAuthManager(auth),
 		db:        db,
 		templates: tmpl,
 		config:    conf,
+		location:  loc,
 	}
 }
 
@@ -81,7 +87,7 @@ func (v *ViewEventHandler) ServeHTTP(
 
 	can_edit = v.auth.IsAuthenticatedScope(req, v.config.GetEditScope())
 
-	ev, err = FetchEvent(v.db, v.config, urlparts[2], false)
+	ev, err = FetchEvent(v.db, v.config, urlparts[2], v.location, false)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(rw, "Error fetching event "+urlparts[2]+": "+
@@ -161,7 +167,7 @@ func (v *ViewEventHandler) ServeHTTP(
 	ed = &ViewEventData{
 		Ev:          ev,
 		Op:          op,
-		End:         ev.Start.Add(ev.Duration),
+		End:         ev.Start.Add(ev.Duration).In(v.location),
 		Week:        getWeekFromTimestamp(ev.Start),
 		CanDelete:   can_delete,
 		CanDisclaim: can_disclaim,

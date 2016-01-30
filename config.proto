@@ -123,4 +123,7 @@ message DutyCalConfig {
     // How many days to schedule ahead for recurring events.
     // Defaults to half a year.
     optional int32 recurring_events_schedule_ahead = 15 [default = 180];
+
+    // Time zone for displaying times on the web site.
+    optional string default_time_zone = 16 [default = "UTC"];
 }

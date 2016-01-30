@@ -19,6 +19,7 @@ type NewEventHandler struct {
 	db        *cassandra.RetryCassandraClient
 	templates *template.Template
 	config    *DutyCalConfig
+	location  *time.Location
 }
 
 type NewEventHandlerData struct {
@@ -39,6 +40,7 @@ type NewEventHandlerData struct {
 func NewNewEventHandler(
 	db *cassandra.RetryCassandraClient,
 	auth *ancientauth.Authenticator,
+	loc *time.Location,
 	tmpl *template.Template,
 	conf *DutyCalConfig) *NewEventHandler {
 	if db == nil {
@@ -50,12 +52,16 @@ func NewNewEventHandler(
 	if tmpl == nil {
 		log.Panic("tmpl is nil")
 	}
+	if loc == nil {
+		log.Panic("loc is nil")
+	}
 	return &NewEventHandler{
 		auth:      auth,
 		am:        NewAuthManager(auth),
 		db:        db,
 		templates: tmpl,
 		config:    conf,
+		location:  loc,
 	}
 }
 
@@ -97,7 +103,8 @@ func (h *NewEventHandler) ServeHTTP(
 		on_date = time.Now().Truncate(24 * time.Hour)
 	} else {
 		on_date, err = time.ParseInLocation(
-			"02.01.2006", req.PostFormValue("date"), time.Now().Location())
+			"02.01.2006", req.PostFormValue("date"),
+			h.location)
 		if err != nil {
 			ed.Error = err.Error()
 		}
@@ -160,7 +167,7 @@ func (h *NewEventHandler) ServeHTTP(
 	}
 
 	ed.Ev = CreateEvent(h.db, h.config, title, description, user, start,
-		end.Sub(start), reference, false)
+		end.Sub(start), h.location, reference, false)
 
 	if len(ed.Error) == 0 && ed.StartHour >= 0 && ed.StartHour < 24 &&
 		ed.EndHour >= 0 && ed.EndHour < 24 && ed.StartMinute >= 0 &&
