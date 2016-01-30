@@ -5,6 +5,7 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/starshipfactory/dutycal"
@@ -14,6 +15,7 @@ func main() {
 	var db *cassandra.RetryCassandraClient
 	var ire *cassandra.InvalidRequestException
 	var rev *dutycal.RecurringEvent
+	var loc *time.Location
 	var config dutycal.DutyCalConfig
 	var config_path string
 	var configdata []byte
@@ -54,9 +56,15 @@ func main() {
 			": ", err)
 	}
 
+	loc, err = time.LoadLocation(config.GetDefaultTimeZone())
+	if err != nil {
+		log.Fatal("Unable to load time zone ", config.GetDefaultTimeZone(),
+			": ", err)
+	}
+
 	// For each recurring event, make sure we have enough scheduled for the
 	// near future.
 	for _, rev = range config.RecurringEvents {
-		ScheduleRecurringEvent(db, &config, rev)
+		ScheduleRecurringEvent(db, &config, loc, rev)
 	}
 }
