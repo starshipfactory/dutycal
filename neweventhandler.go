@@ -85,7 +85,7 @@ func (h *NewEventHandler) ServeHTTP(
 	if !h.auth.IsAuthenticatedScope(req, h.config.GetEditScope()) {
 		rw.WriteHeader(http.StatusForbidden)
 		io.WriteString(rw, "No permission to create events: "+
-			err.Error()+"\r\n")
+			user+" is not in "+h.config.GetEditScope()+"\r\n")
 	}
 
 	err = req.ParseForm()
