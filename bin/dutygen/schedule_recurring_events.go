@@ -34,7 +34,7 @@ func ScheduleWeekdayRecurringEvent(
 	db *cassandra.RetryCassandraClient, conf *dutycal.DutyCalConfig,
 	loc *time.Location, rev *dutycal.RecurringEvent) {
 	var duration time.Duration
-	var next_ev time.Time = time.Now()
+	var next_ev time.Time = time.Now().In(loc)
 	var end_time time.Time
 	var u *url.URL
 
