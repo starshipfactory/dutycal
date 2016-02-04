@@ -297,7 +297,8 @@ func (e *Event) Sync() error {
 		e.Id = e.genEventID()
 	}
 
-	ts = time.Now().UnixNano()
+	// Timestamps should be in microseconds.
+	ts = time.Now().UnixNano() / 1000
 
 	col = cassandra.NewColumn()
 	col.Name = []byte("title")
