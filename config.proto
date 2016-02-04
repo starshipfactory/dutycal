@@ -46,6 +46,28 @@ message RecurringEvent {
     optional int32 duration_minutes = 10 [default = 0];
 }
 
+// Individual notification configuration. There can be multiple.
+message UpcomingEventNotificationConfig {
+    // Name of the section to refer to
+    required string name = 1;
+
+    // How many days to look ahead for events to warn about.
+    // Defauls to 3 weeks.
+    optional int32 warning_lookahead = 2 [default = 21];
+
+    // Sender of the corresponding notification mails.
+    required string sender = 3;
+
+    // Recipient of the corresponding notification mails.
+    required string recipient = 4;
+
+    // Subject string of the notificaiton mails.
+    required string subject = 5;
+
+    // Path to the mail template file to use.
+    required string template_path = 6;
+}
+
 // Authentication specific part of the configuration.
 message DutyCalAuthConfig {
     // Then name of the application to be displayed to the user.
@@ -70,6 +92,22 @@ message DutyCalAuthConfig {
     // Size of the X.509 certificate cache to use for checking
     // certificates against.
     optional int32 x509_cache_size = 7 [default = 10];
+}
+
+// Configuration for sending email.
+message DutyCalMailConfig {
+        // Data to create a SMTP connection.
+        // Name or address and port of the smtp server.
+        required string smtp_server_address = 1;
+
+        // Leave empty to use username instead.
+        optional string identity = 2 [default = ""];
+
+        // Username for the mail authentication.
+        optional string username = 3;
+
+        // Plaintext password for the mail authentication.
+        optional string password = 4;
 }
 
 message DutyCalConfig {
@@ -125,4 +163,11 @@ message DutyCalConfig {
 
     // Time zone for displaying times on the web site.
     optional string default_time_zone = 16 [default = "UTC"];
+
+    // Configuration settings for notifying users about unowned upcoming
+    // events.
+    repeated UpcomingEventNotificationConfig upcoming_notifications = 17;
+
+    // Mail delivery configuration.
+    required DutyCalMailConfig mail_config = 18;
 }
