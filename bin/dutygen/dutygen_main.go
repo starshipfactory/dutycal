@@ -15,14 +15,18 @@ func main() {
 	var db *cassandra.RetryCassandraClient
 	var ire *cassandra.InvalidRequestException
 	var rev *dutycal.RecurringEvent
+	var start time.Time
 	var loc *time.Location
 	var config dutycal.DutyCalConfig
+	var start_date string
 	var config_path string
 	var configdata []byte
 	var err error
 
 	flag.StringVar(&config_path, "config", "",
 		"Path to the configuration file")
+	flag.StringVar(&start_date, "start", "",
+		"If specified, start generating from this date rather than today")
 	flag.Parse()
 
 	if len(config_path) == 0 {
@@ -62,9 +66,18 @@ func main() {
 			": ", err)
 	}
 
+	if len(start_date) > 0 {
+		start, err = time.ParseInLocation("2006-01-02", start_date, loc)
+		if err != nil {
+			log.Panic("Error parsing ", start_date, " as date: ", err)
+		}
+	} else {
+		start = time.Now().In(loc)
+	}
+
 	// For each recurring event, make sure we have enough scheduled for the
 	// near future.
 	for _, rev = range config.RecurringEvents {
-		ScheduleRecurringEvent(db, &config, loc, rev)
+		ScheduleRecurringEvent(start, db, &config, loc, rev)
 	}
 }

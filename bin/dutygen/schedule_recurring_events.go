@@ -31,10 +31,11 @@ func genGeneratorID(start time.Time, duration time.Duration, title, description 
 }
 
 func ScheduleWeekdayRecurringEvent(
-	db *cassandra.RetryCassandraClient, conf *dutycal.DutyCalConfig,
-	loc *time.Location, rev *dutycal.RecurringEvent) {
+	start time.Time, db *cassandra.RetryCassandraClient,
+	conf *dutycal.DutyCalConfig, loc *time.Location,
+	rev *dutycal.RecurringEvent) {
 	var duration time.Duration
-	var next_ev time.Time = time.Now().In(loc)
+	var next_ev time.Time = start
 	var end_time time.Time
 	var u *url.URL
 
@@ -106,10 +107,11 @@ func ScheduleWeekdayRecurringEvent(
 }
 
 func ScheduleRecurringEvent(
-	db *cassandra.RetryCassandraClient, conf *dutycal.DutyCalConfig,
-	loc *time.Location, rev *dutycal.RecurringEvent) {
+	start time.Time, db *cassandra.RetryCassandraClient,
+	conf *dutycal.DutyCalConfig, loc *time.Location,
+	rev *dutycal.RecurringEvent) {
 	if rev.GetRecurrenceType() == dutycal.RecurringEvent_WEEKDAY {
-		ScheduleWeekdayRecurringEvent(db, conf, loc, rev)
+		ScheduleWeekdayRecurringEvent(start, db, conf, loc, rev)
 	} else {
 		log.Print("Don't know how to schedule a recurrence of type ",
 			rev.GetRecurrenceType())
