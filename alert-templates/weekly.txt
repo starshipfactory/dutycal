@@ -1,0 +1,16 @@
+Dear co-members,
+
+The following opening hours during the next few weeks have not been assigned
+yet:
+
+{{ range . }} * {{.Title}}
+   on {{.Start}} for {{.Duration}}
+{{ if .Reference }}   (See {{.Reference}} for details){{ end }}
+   Please sign up on https://dutycal.example.org/event/{{.Id|urlquery}}/view
+
+{{ end }}Please sign up for these if you have time, so we can guarantee that
+our space will be open. It is easier if you sign up early so that we can
+spread this responsibility across as many sholders as possible.
+
+Thanks a lot,
+your faithful duty calendar

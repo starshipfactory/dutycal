@@ -1,0 +1,15 @@
+Dear co-members,
+
+Nobody has signed up yet for the following opening hours in the next days,
+which we really want to be open on:
+
+{{ range . }} * {{.Title}}
+   on {{.Start}} for {{.Duration}}
+{{ if .Reference }}   (See {{.Reference}} for details){{ end }}
+   Please sign up on https://dutycal.example.org/event/{{.Id|urlquery}}/view
+
+{{ end }}Please sign up sooner rather than later so we can coordinate to keep
+our space open reliably!
+
+Thanks a lot,
+your faithful duty calendar
