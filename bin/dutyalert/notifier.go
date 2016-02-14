@@ -68,6 +68,7 @@ func SendNotifications(
 		time.Now().In(loc).Format("2006-01-02T15-04-05")+"-"+
 		strconv.FormatInt(int64(len(notify)), 10)+"msg-"+
 		notification.GetSender()+"\r\n")
+	io.WriteString(&sb, "Content-Type: text/plain; charset=utf-8\r\n")
 	io.WriteString(&sb, "From: "+notification.GetSender()+"\r\n")
 	io.WriteString(&sb, "To: "+notification.GetRecipient()+"\r\n")
 	io.WriteString(&sb, "Subject: "+notification.GetSubject()+"\r\n")
