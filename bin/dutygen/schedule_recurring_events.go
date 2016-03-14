@@ -30,13 +30,15 @@ func genGeneratorID(start time.Time, duration time.Duration, title, description 
 	return rv
 }
 
+// ScheduleWeekdayRecurringEvent schedules a recurring event which is based
+// on weekday recurrence, i.e. weekly on the same week day.
 func ScheduleWeekdayRecurringEvent(
 	start time.Time, db *cassandra.RetryCassandraClient,
 	conf *dutycal.DutyCalConfig, loc *time.Location,
 	rev *dutycal.RecurringEvent) {
 	var duration time.Duration
-	var next_ev time.Time = start
-	var end_time time.Time
+	var nextEv time.Time = start
+	var endTime time.Time
 	var u *url.URL
 
 	if rev.Reference != nil {
@@ -47,24 +49,24 @@ func ScheduleWeekdayRecurringEvent(
 		time.Duration(rev.GetDurationMinutes())*time.Minute
 
 	// Timezone specific Truncate()
-	next_ev = next_ev.Add(-1 * time.Duration(next_ev.Hour()) * time.Hour).
-		Add(-1 * time.Duration(next_ev.Minute()) * time.Minute).
-		Add(-1 * time.Duration(next_ev.Second()) * time.Second).
-		Add(-1 * time.Duration(next_ev.Nanosecond()) * time.Nanosecond)
+	nextEv = nextEv.Add(-1 * time.Duration(nextEv.Hour()) * time.Hour).
+		Add(-1 * time.Duration(nextEv.Minute()) * time.Minute).
+		Add(-1 * time.Duration(nextEv.Second()) * time.Second).
+		Add(-1 * time.Duration(nextEv.Nanosecond()) * time.Nanosecond)
 
-	end_time = next_ev.AddDate(
+	endTime = nextEv.AddDate(
 		0, 0, int(conf.GetRecurringEventsScheduleAhead()))
 
 	// Find the next fitting week day.
-	next_ev = next_ev.AddDate(0, 0,
-		7-int(next_ev.Weekday())+int(rev.GetRecurrenceSelector())).
+	nextEv = nextEv.AddDate(0, 0,
+		7-int(nextEv.Weekday())+int(rev.GetRecurrenceSelector())).
 		Add(time.Duration(rev.GetStartHour()) * time.Hour).
 		Add(time.Duration(rev.GetStartMinute()) * time.Minute)
 
-	for next_ev.Before(end_time) {
+	for nextEv.Before(endTime) {
 		// Now, let's determine if there is already a scheduled event during
 		// that time.
-		var genid []byte = genGeneratorID(next_ev, duration, rev.GetTitle(),
+		var genid []byte = genGeneratorID(nextEv, duration, rev.GetTitle(),
 			rev.GetDescription())
 		var evs []*dutycal.Event
 		var ev *dutycal.Event
@@ -72,10 +74,10 @@ func ScheduleWeekdayRecurringEvent(
 		var err error
 
 		evs, err = dutycal.FetchEventRange(
-			db, conf, next_ev, next_ev.Add(duration), loc, true)
+			db, conf, nextEv, nextEv.Add(duration), -1, loc, nil, true)
 		if err != nil {
 			log.Print("Error fetching events from ",
-				next_ev, " to ", next_ev.Add(duration), ": ", err)
+				nextEv, " to ", nextEv.Add(duration), ": ", err)
 			return
 		}
 
@@ -91,21 +93,23 @@ func ScheduleWeekdayRecurringEvent(
 
 		if !found {
 			ev = dutycal.CreateEvent(db, conf, rev.GetTitle(),
-				rev.GetDescription(), "", next_ev, duration, loc, u,
+				rev.GetDescription(), "", nextEv, duration, loc, u,
 				rev.GetRequired())
 			ev.GeneratorID = genid
 			err = ev.Sync()
 			if err != nil {
 				log.Print("Error creating event from ",
-					next_ev.Format(time.RFC1123Z), " to ",
-					next_ev.Add(duration).Format(time.RFC1123Z),
+					nextEv.Format(time.RFC1123Z), " to ",
+					nextEv.Add(duration).Format(time.RFC1123Z),
 					": ", err)
 			}
 		}
-		next_ev = next_ev.AddDate(0, 0, 7)
+		nextEv = nextEv.AddDate(0, 0, 7)
 	}
 }
 
+// ScheduleRecurringEvent schedules a recurring event based on what recurrence
+// type was defined in the configuration file.
 func ScheduleRecurringEvent(
 	start time.Time, db *cassandra.RetryCassandraClient,
 	conf *dutycal.DutyCalConfig, loc *time.Location,

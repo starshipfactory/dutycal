@@ -12,6 +12,8 @@ import (
 	"ancient-solutions.com/ancientauth"
 )
 
+// ViewCalHandler is a handler for viewing lists of events on the
+// calendar. Mostly used as an HTTP handler.
 type ViewCalHandler struct {
 	am        *authManager
 	db        *cassandra.RetryCassandraClient
@@ -29,10 +31,14 @@ type calendarViewData struct {
 	PreviousWeek  int64
 	NextWeek      int64
 
-	Days   []string
-	Events [][]*Event
+	Days       []string
+	Events     [][]*Event
+	Unassigned []*Event
+	Mine       []*Event
 }
 
+// NewViewCalHandler creates a new HTTP handler for viewing calendar entries.
+// All flags will just be placed into the ViewCalHandler as they are.
 func NewViewCalHandler(
 	db *cassandra.RetryCassandraClient, auth *ancientauth.Authenticator,
 	loc *time.Location, tmpl *template.Template,
@@ -60,6 +66,7 @@ func NewViewCalHandler(
 
 func (v *ViewCalHandler) ServeHTTP(
 	rw http.ResponseWriter, req *http.Request) {
+	var user string
 	var md calendarViewData
 	var ts time.Time
 	var week int64
@@ -112,7 +119,7 @@ func (v *ViewCalHandler) ServeHTTP(
 		dayend = dayend.Add(time.Duration(-offset) * time.Second)
 
 		events, err = FetchEventRange(v.db, v.config,
-			ts, dayend, v.location, false)
+			ts, dayend, -1, v.location, nil, false)
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
 			io.WriteString(rw, "Error fetching events for "+ts.String()+
@@ -126,7 +133,23 @@ func (v *ViewCalHandler) ServeHTTP(
 		ts = dayend
 	}
 
+	md.Unassigned, err = FetchEventRange(v.db, v.config, time.Now(),
+		time.Unix(0, 0), v.config.GetUpcomingEventsLookahead(), v.location,
+		&user, false)
+	if err != nil {
+		log.Print("Error fetching upcoming unassigned events: ", err)
+	}
+
 	v.am.GenAuthDetails(req, &md.Auth)
+	user = md.Auth.User
+	if len(user) > 0 {
+		md.Mine, err = FetchEventRange(v.db, v.config, time.Now(),
+			time.Unix(0, 0), v.config.GetUserEventsLookahead(), v.location,
+			&user, false)
+		if err != nil {
+			log.Print("Error fetching upcoming events for ", user, ": ", err)
+		}
+	}
 
 	err = v.templates.ExecuteTemplate(rw, "viewcalendar.html", &md)
 	if err != nil {

@@ -18,28 +18,28 @@ func main() {
 	var start time.Time
 	var loc *time.Location
 	var config dutycal.DutyCalConfig
-	var start_date string
-	var config_path string
-	var configdata []byte
+	var startDate string
+	var configPath string
+	var configData []byte
 	var err error
 
-	flag.StringVar(&config_path, "config", "",
+	flag.StringVar(&configPath, "config", "",
 		"Path to the configuration file")
-	flag.StringVar(&start_date, "start", "",
+	flag.StringVar(&startDate, "start", "",
 		"If specified, start generating from this date rather than today")
 	flag.Parse()
 
-	if len(config_path) == 0 {
+	if len(configPath) == 0 {
 		flag.Usage()
 		log.Fatal("No config file has been specified")
 	}
 
-	configdata, err = ioutil.ReadFile(config_path)
+	configData, err = ioutil.ReadFile(configPath)
 	if err != nil {
-		log.Fatal("Error reading config file ", config_path, ": ", err)
+		log.Fatal("Error reading config file ", configPath, ": ", err)
 	}
 
-	err = proto.UnmarshalText(string(configdata), &config)
+	err = proto.UnmarshalText(string(configData), &config)
 	if err != nil {
 		log.Fatal("Error reading config file: ", err)
 	}
@@ -50,7 +50,7 @@ func main() {
 			config.GetDbServer(), ": ", err)
 	}
 
-	ire, err = db.SetKeyspace(config.GetKeyspace())
+	err = db.SetKeyspace(config.GetKeyspace())
 	if ire != nil {
 		log.Fatal("Error switching keyspace to ", config.GetKeyspace(),
 			": ", ire.Why)
@@ -66,10 +66,10 @@ func main() {
 			": ", err)
 	}
 
-	if len(start_date) > 0 {
-		start, err = time.ParseInLocation("2006-01-02", start_date, loc)
+	if len(startDate) > 0 {
+		start, err = time.ParseInLocation("2006-01-02", startDate, loc)
 		if err != nil {
-			log.Panic("Error parsing ", start_date, " as date: ", err)
+			log.Panic("Error parsing ", startDate, " as date: ", err)
 		}
 	} else {
 		start = time.Now().In(loc)

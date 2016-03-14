@@ -14,6 +14,9 @@ import (
 	"github.com/starshipfactory/dutycal"
 )
 
+// SendNotifications sends notification mails as required for all unassigned
+// events in the upcoming few days (as specified in the notification
+// configuration). SMTP server settings are taken from the config.
 func SendNotifications(
 	notification *dutycal.UpcomingEventNotificationConfig,
 	db *cassandra.RetryCassandraClient,
@@ -30,7 +33,8 @@ func SendNotifications(
 	var ev *dutycal.Event
 	var weekend time.Time
 	var auth smtp.Auth
-	var smtp_host string
+	var smtpHost string
+	var user string
 	var offset int
 	var err error
 
@@ -44,7 +48,7 @@ func SendNotifications(
 		}
 
 		events, err = dutycal.FetchEventRange(
-			db, config, now, weekend, loc, false)
+			db, config, now, weekend, -1, loc, &user, false)
 		if err != nil {
 			log.Fatal("Error fetching events from ", now, " to ",
 				weekend, ": ", err)
@@ -81,7 +85,7 @@ func SendNotifications(
 			notification.GetTemplatePath(), ": ", err)
 	}
 
-	smtp_host, _, err = net.SplitHostPort(
+	smtpHost, _, err = net.SplitHostPort(
 		config.GetMailConfig().GetSmtpServerAddress())
 	if err != nil {
 		log.Fatal("Error splitting host:port in SMTP server address: ",
@@ -91,7 +95,7 @@ func SendNotifications(
 	auth = smtp.PlainAuth(
 		config.GetMailConfig().GetIdentity(),
 		config.GetMailConfig().GetUsername(),
-		config.GetMailConfig().GetPassword(), smtp_host)
+		config.GetMailConfig().GetPassword(), smtpHost)
 
 	err = smtp.SendMail(config.GetMailConfig().GetSmtpServerAddress(),
 		auth, notification.GetSender(),

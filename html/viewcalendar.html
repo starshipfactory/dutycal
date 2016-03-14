@@ -43,11 +43,11 @@
                             <ul>
     {{ range $event := $events }}
                                 <li>
-                                    <a href="/event/{{ $event.Id }}/view">{{ $event.Title }}</a><br/>
+                                    <a href="/event/{{ $event.ID }}/view">{{ $event.Title }}</a><br/>
                                         at {{ $event.Start }}<br/>for {{ $event.Duration }}
         {{ if $event.Reference }}
                                         <br/>
-                                        <a href="{{ $event.Reference.String }}">Details</a>
+                                        <a href="{{ $event.Reference.String }}">See internet page for details</a>
         {{ end }}
                                 </li>
     {{ else }}
@@ -59,6 +59,37 @@
                     </tr>
                 </tbody>
             </table>
+{{ if .Auth.User }}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">Your upcoming events</div>
+                        <ul class="list-group">
+    {{ range $event := .Mine }}
+                            <li class="list-group-item">
+                                <a href="/event/{{ $event.ID }}/view">{{ $event.Title }}</a>
+                                at {{ $event.Start }} for {{ $event.Duration }}
+                            </li>
+    {{ end }}
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">Unassigned upcoming events</div>
+                        <ul class="list-group">
+    {{ range $event := .Unassigned }}
+                            <li class="list-group-item">
+                                <a href="/event/{{ $event.ID }}/view">{{ $event.Title }}</a>
+                                at {{ $event.Start }} for {{ $event.Duration }}
+                            </li>
+    {{ end }}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+{{ end }}
 {{ if .PreviousWeek }}
             <a href="/?week={{ .PreviousWeek }}" class="btn btn-default pull-left" role="button">Week {{ .PreviousWeek }}</a>
 {{ end }}

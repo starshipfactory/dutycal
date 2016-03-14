@@ -14,9 +14,8 @@ import (
 
 func main() {
 	var db *cassandra.RetryCassandraClient
-	var ire *cassandra.InvalidRequestException
-	var notification_section string
-	var config_path string
+	var notificationSection string
+	var configPath string
 	var configdata []byte
 	var loc *time.Location
 	var config dutycal.DutyCalConfig
@@ -24,20 +23,20 @@ func main() {
 	var tmpl *template.Template
 	var err error
 
-	flag.StringVar(&config_path, "config", "",
+	flag.StringVar(&configPath, "config", "",
 		"Path to the configuration file")
-	flag.StringVar(&notification_section, "section", "",
+	flag.StringVar(&notificationSection, "section", "",
 		"Name of the notification section to check against")
 	flag.Parse()
 
-	if len(config_path) == 0 {
+	if len(configPath) == 0 {
 		flag.Usage()
 		log.Fatal("No config file has been specified")
 	}
 
-	configdata, err = ioutil.ReadFile(config_path)
+	configdata, err = ioutil.ReadFile(configPath)
 	if err != nil {
-		log.Fatal("Error reading config file ", config_path, ": ", err)
+		log.Fatal("Error reading config file ", configPath, ": ", err)
 	}
 
 	err = proto.UnmarshalText(string(configdata), &config)
@@ -51,11 +50,7 @@ func main() {
 			config.GetDbServer(), ": ", err)
 	}
 
-	ire, err = db.SetKeyspace(config.GetKeyspace())
-	if ire != nil {
-		log.Fatal("Error switching keyspace to ", config.GetKeyspace(),
-			": ", ire.Why)
-	}
+	err = db.SetKeyspace(config.GetKeyspace())
 	if err != nil {
 		log.Fatal("Error switching keyspace to ", config.GetKeyspace(),
 			": ", err)
@@ -68,14 +63,14 @@ func main() {
 	}
 
 	for _, n = range config.GetUpcomingNotifications() {
-		if notification_section == n.GetName() {
+		if notificationSection == n.GetName() {
 			notification = n
 		}
 	}
 
 	if notification == nil {
-		log.Fatal("No notification named ", notification_section,
-			" in configuration ", config_path)
+		log.Fatal("No notification named ", notificationSection,
+			" in configuration ", configPath)
 	}
 
 	tmpl, err = template.ParseFiles(notification.GetTemplatePath())

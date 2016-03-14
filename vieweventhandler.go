@@ -13,6 +13,8 @@ import (
 	"ancient-solutions.com/ancientauth"
 )
 
+// ViewEventHandler is a handler for viewing individual events from the
+// calendar. Mostly used as an HTTP handler.
 type ViewEventHandler struct {
 	auth      *ancientauth.Authenticator
 	am        *authManager
@@ -22,6 +24,8 @@ type ViewEventHandler struct {
 	location  *time.Location
 }
 
+// ViewEventData holds all the data to be presented to the user from the
+// template of the view event handler.
 type ViewEventData struct {
 	Auth AuthDetails
 
@@ -34,6 +38,12 @@ type ViewEventData struct {
 	CanDelete   bool
 }
 
+// NewViewEventHandler creates a new ViewEventHandler object using the specified
+// database connection "db", the authentication client parameters "auth", the
+// timestamp locale "loc", the HTML template "tmpl" and just in general the
+// configuration protobuf "conf".
+//
+// This method cannot fail (except for running out of memory or something).
 func NewViewEventHandler(
 	db *cassandra.RetryCassandraClient,
 	auth *ancientauth.Authenticator,
@@ -66,9 +76,9 @@ func (v *ViewEventHandler) ServeHTTP(
 	rw http.ResponseWriter, req *http.Request) {
 	var user string
 	var ed *ViewEventData
-	var can_edit bool
-	var can_delete bool
-	var can_disclaim bool
+	var canEdit bool
+	var canDelete bool
+	var canDisclaim bool
 	var urlparts []string = strings.Split(req.URL.Path, "/")
 	var op string
 	var ev *Event
@@ -85,7 +95,7 @@ func (v *ViewEventHandler) ServeHTTP(
 		op = "view"
 	}
 
-	can_edit = v.auth.IsAuthenticatedScope(req, v.config.GetEditScope())
+	canEdit = v.auth.IsAuthenticatedScope(req, v.config.GetEditScope())
 
 	ev, err = FetchEvent(v.db, v.config, urlparts[2], v.location, false)
 	if err != nil {
@@ -96,8 +106,8 @@ func (v *ViewEventHandler) ServeHTTP(
 		return
 	}
 
-	can_delete = !ev.Required && ev.Owner == user
-	can_disclaim = ev.Owner == user
+	canDelete = !ev.Required && ev.Owner == user
+	canDisclaim = ev.Owner == user
 
 	if op == "take" {
 		if len(user) == 0 {
@@ -105,12 +115,12 @@ func (v *ViewEventHandler) ServeHTTP(
 			return
 		}
 
-		if can_edit {
+		if canEdit {
 			ev.Owner = user
 			err = ev.Sync()
 			if err != nil {
 				log.Print("Error syncing new owner ", user,
-					" for event ", ev.Id, ": ", err)
+					" for event ", ev.ID, ": ", err)
 				ev.Owner = err.Error()
 			}
 		}
@@ -120,19 +130,19 @@ func (v *ViewEventHandler) ServeHTTP(
 			return
 		}
 
-		if can_disclaim {
+		if canDisclaim {
 			ev.Owner = ""
 			err = ev.Sync()
 			if err == nil {
 				rw.Header().Set("Location",
-					"/event/"+ev.Id+"/view")
+					"/event/"+ev.ID+"/view")
 				rw.WriteHeader(http.StatusTemporaryRedirect)
 				return
-			} else {
-				log.Print("Error syncing new owner ", user,
-					" for event ", ev.Id, ": ", err)
-				ev.Owner = err.Error()
 			}
+
+			log.Print("Error syncing new owner ", user,
+				" for event ", ev.ID, ": ", err)
+			ev.Owner = err.Error()
 		}
 	} else if op == "delete" {
 		if len(user) == 0 {
@@ -140,7 +150,7 @@ func (v *ViewEventHandler) ServeHTTP(
 			return
 		}
 
-		if can_delete {
+		if canDelete {
 			err = ev.Delete()
 			if err == nil {
 				rw.Header().Set("Location",
@@ -148,19 +158,18 @@ func (v *ViewEventHandler) ServeHTTP(
 						getWeekFromTimestamp(ev.Start), 10))
 				rw.WriteHeader(http.StatusTemporaryRedirect)
 				return
-			} else {
-				log.Print("Error deleting event ", ev.Id, ": ", err)
 			}
+			log.Print("Error deleting event ", ev.ID, ": ", err)
 		}
 	}
 
 	// Things may have changed above, let's recompute.
-	can_delete = !ev.Required && ev.Owner == user
-	can_disclaim = ev.Owner == user
+	canDelete = !ev.Required && ev.Owner == user
+	canDisclaim = ev.Owner == user
 
 	// Hide personal details unless the user is authenticated to a scope
 	// which can see them.
-	if !can_edit && len(ev.Owner) > 0 {
+	if !canEdit && len(ev.Owner) > 0 {
 		ev.Owner = "Assigned"
 	}
 
@@ -169,8 +178,8 @@ func (v *ViewEventHandler) ServeHTTP(
 		Op:          op,
 		End:         ev.Start.Add(ev.Duration).In(v.location),
 		Week:        getWeekFromTimestamp(ev.Start),
-		CanDelete:   can_delete,
-		CanDisclaim: can_disclaim,
+		CanDelete:   canDelete,
+		CanDisclaim: canDisclaim,
 	}
 	v.am.GenAuthDetails(req, &ed.Auth)
 	err = v.templates.ExecuteTemplate(rw, "viewevent.html", ed)

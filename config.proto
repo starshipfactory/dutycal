@@ -170,4 +170,10 @@ message DutyCalConfig {
 
     // Mail delivery configuration.
     required DutyCalMailConfig mail_config = 18;
+
+    // Number of upcoming unassigned events to fetch.
+    optional int32 upcoming_events_lookahead = 19 [default = 7];
+
+    // Number of events assigned to the user to fetch.
+    optional int32 user_events_lookahead = 20 [default = 5];
 }

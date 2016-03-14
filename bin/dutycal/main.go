@@ -16,40 +16,39 @@ import (
 
 func main() {
 	var auth *ancientauth.Authenticator
-	var view_templates *template.Template
+	var viewTemplates *template.Template
 	var viewhandler *dutycal.ViewCalHandler
 	var vieweventhandler *dutycal.ViewEventHandler
 	var neweventhandler *dutycal.NewEventHandler
 	var db *cassandra.RetryCassandraClient
-	var ire *cassandra.InvalidRequestException
 	var loc *time.Location
 	var config dutycal.DutyCalConfig
-	var config_path, listen_addr string
-	var configdata []byte
+	var configPath, listenAddr string
+	var configData []byte
 	var err error
 
-	flag.StringVar(&config_path, "config", "",
+	flag.StringVar(&configPath, "config", "",
 		"Path to the configuration file")
-	flag.StringVar(&listen_addr, "listen", ":8080",
+	flag.StringVar(&listenAddr, "listen", ":8080",
 		"host:port pair the server should listen on")
 	flag.Parse()
 
-	if len(config_path) == 0 {
+	if len(configPath) == 0 {
 		flag.Usage()
 		log.Fatal("No config file has been specified")
 	}
 
-	configdata, err = ioutil.ReadFile(config_path)
+	configData, err = ioutil.ReadFile(configPath)
 	if err != nil {
-		log.Fatal("Error reading config file ", config_path, ": ", err)
+		log.Fatal("Error reading config file ", configPath, ": ", err)
 	}
 
-	err = proto.UnmarshalText(string(configdata), &config)
+	err = proto.UnmarshalText(string(configData), &config)
 	if err != nil {
 		log.Fatal("Error reading config file: ", err)
 	}
 
-	view_templates, err = template.ParseGlob(
+	viewTemplates, err = template.ParseGlob(
 		config.GetTemplatePath() + "/*")
 	if err != nil {
 		log.Fatal("Error reading HTML templates: ", err)
@@ -71,11 +70,7 @@ func main() {
 			config.GetDbServer(), ": ", err)
 	}
 
-	ire, err = db.SetKeyspace(config.GetKeyspace())
-	if ire != nil {
-		log.Fatal("Error switching keyspace to ", config.GetKeyspace(),
-			": ", ire.Why)
-	}
+	err = db.SetKeyspace(config.GetKeyspace())
 	if err != nil {
 		log.Fatal("Error switching keyspace to ", config.GetKeyspace(),
 			": ", err)
@@ -88,11 +83,11 @@ func main() {
 	}
 
 	viewhandler = dutycal.NewViewCalHandler(
-		db, auth, loc, view_templates, &config)
+		db, auth, loc, viewTemplates, &config)
 	vieweventhandler = dutycal.NewViewEventHandler(
-		db, auth, loc, view_templates, &config)
+		db, auth, loc, viewTemplates, &config)
 	neweventhandler = dutycal.NewNewEventHandler(
-		db, auth, loc, view_templates, &config)
+		db, auth, loc, viewTemplates, &config)
 
 	http.Handle("/", viewhandler)
 	http.Handle("/favicon.ico", http.NotFoundHandler())
@@ -108,9 +103,9 @@ func main() {
 		http.StripPrefix("/fontawesome/",
 			http.FileServer(http.Dir(config.GetFontawesomePath()))))
 
-	err = http.ListenAndServeTLS(listen_addr, config.GetTlsCertFile(),
+	err = http.ListenAndServeTLS(listenAddr, config.GetTlsCertFile(),
 		config.GetTlsKeyFile(), nil)
 	if err != nil {
-		log.Fatal("Error listening on ", listen_addr, ": ", err)
+		log.Fatal("Error listening on ", listenAddr, ": ", err)
 	}
 }

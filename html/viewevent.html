@@ -28,7 +28,7 @@
 {{ end }}
             <h1>{{.Ev.Title}} <small>Event Details</small></h1>
             <p>
-                The details about the event <em>{{.Ev.Id}}</em>:
+                The details about the event <em>{{.Ev.ID}}</em>:
             </p>
             <table class="table">
                 <tbody>
@@ -60,7 +60,7 @@
                         <td>Not assigned yet
   {{ if .Ev.Required }}
                             <p class="bg-warning">Required slot!
-                                <a href="/event/{{.Ev.Id}}/take">Please sign up!</a></p>
+                                <a href="/event/{{.Ev.ID}}/take">Please sign up!</a></p>
   {{ end }}
                         </td>
 {{ end }}
@@ -70,13 +70,13 @@
             <p>
 {{ if .Ev.Owner }}
     {{ if .CanDisclaim }}
-                <a class="btn btn-default" href="/event/{{.Ev.Id}}/disclaim">Disclaim</a>
+                <a class="btn btn-default" href="/event/{{.Ev.ID}}/disclaim">Disclaim</a>
     {{ end }}
     {{ if .CanDelete }}
-                <a class="btn btn-default" href="/event/{{.Ev.Id}}/delete">Delete</a>
+                <a class="btn btn-default" href="/event/{{.Ev.ID}}/delete">Delete</a>
     {{ end }}
 {{ else }}
-                <a class="btn btn-default" href="/event/{{.Ev.Id}}/take">Take</a>
+                <a class="btn btn-default" href="/event/{{.Ev.ID}}/take">Take</a>
 {{ end }}
                 <a class="btn btn-primary" href="/?week={{.Week}}" role="button">Back</a>
             </p>
