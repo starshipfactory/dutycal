@@ -61,32 +61,32 @@
             </table>
 {{ if .Auth.User }}
             <div class="row">
-                <div class="col-md-6">
-                    <div class="panel panel-default">
-                        <div class="panel-heading">Your upcoming events</div>
-                        <ul class="list-group">
+                <div class="span6 col-md-6">
+                    <ul class="nav nav-list">
+                        <li class="nav-header">Your upcoming events</li>
     {{ range $event := .Mine }}
-                            <li class="list-group-item">
-                                <a href="/event/{{ $event.ID }}/view">{{ $event.Title }}</a>
-                                at {{ $event.Start }} for {{ $event.Duration }}
-                            </li>
+			<li>
+			    <a href="/event/{{ $event.ID }}/view">{{ $event.Title }}</a>
+			    <small>
+				at {{ $event.Start }} for {{ $event.Duration }}
+			    </small>
+			</li>
     {{ end }}
-                        </ul>
-                    </div>
+                    </ul>
                 </div>
 
-                <div class="col-md-6">
-                    <div class="panel panel-default">
-                        <div class="panel-heading">Unassigned upcoming events</div>
-                        <ul class="list-group">
+                <div class="span6 col-md-6">
+                    <ul class="nav nav-list">
+                        <li class="nav-header">Unassigned upcoming events</li>
     {{ range $event := .Unassigned }}
-                            <li class="list-group-item">
-                                <a href="/event/{{ $event.ID }}/view">{{ $event.Title }}</a>
-                                at {{ $event.Start }} for {{ $event.Duration }}
-                            </li>
+			<li>
+			    <a href="/event/{{ $event.ID }}/view">{{ $event.Title }}</a>
+			    <small>
+				at {{ $event.Start }} for {{ $event.Duration }}
+			    </small>
+			</li>
     {{ end }}
-                        </ul>
-                    </div>
+                    </ul>
                 </div>
             </div>
 {{ end }}
